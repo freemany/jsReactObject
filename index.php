@@ -18,8 +18,8 @@ function notify(key, val) {
     console.log.apply(console.log, [this, key, val]);
 }
 
-function setterNotify(key, val) {
-    console.log.apply(console.log, ['set', this, key, val]);
+function setterNotify(key, oldVal, newVal) {
+    console.log.apply(console.log, ['set', this, key, oldVal, newVal]);
 }
 
 function getterNotify(key, val) {
@@ -46,11 +46,11 @@ function _makeReactive (
   }
 
   // cater for pre-defined getter/setters
-  const getter = property && property.get
-  const setter = property && property.set
-  if ((!getter || setter) && arguments.length === 2) {
-    val = obj[key]
-  }
+//   const getter = property && property.get
+//   const setter = property && property.set
+//   if ((!getter || setter) && arguments.length === 2) {
+//     val = obj[key]
+//   }
 
 //   if (!obj.$set) {
 //      Object.defineProperty(obj, '$set', { 
@@ -79,7 +79,7 @@ function _makeReactive (
     // enumerable: true,
     // configurable: true,
     get: function reactiveGetter () {
-      const value = getter ? getter.call(obj) : val
+    //   const value = val
     //   if (Dep.target) {
     //     dep.depend()
     //     if (childOb) {
@@ -92,12 +92,12 @@ function _makeReactive (
  
       obj.getterCallback.call(obj, key, val);
   
-      return value
+      return val;
     },
     set: function reactiveSetter (newVal) {
-      const value = getter ? getter.call(obj) : val
+        const oldVal = val;
       /* eslint-disable no-self-compare */
-      if (newVal === value || (newVal !== newVal && value !== value)) {
+      if (newVal === val || (newVal !== newVal && val !== val)) {
         return
       }
       /* eslint-enable no-self-compare */
@@ -105,17 +105,17 @@ function _makeReactive (
     //     customSetter()
     //   }
       // #7981: for accessor properties without setter
-      if (getter && !setter) return
-      if (setter) {
-        setter.call(obj, newVal)
-      } else {
+    //   if (getter && !setter) return
+    //   if (setter) {
+    //     setter.call(obj, newVal)
+    //   } else {
         val = newVal
-      }
+    //   }
     //   childOb = !shallow && observe(newVal)
     //   dep.notify()
     // notify('set ', obj, key, value)
   
-    obj.setterCallback.call(obj, key, val);
+    obj.setterCallback.call(obj, key, oldVal, newVal);
   
     }
   });
