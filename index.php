@@ -2,13 +2,9 @@
 <html>
 <head>
 <script>
-function makeReactive(obj, notifiers) {
-    for(const key in obj) {
-        _makeReactive(obj, key, obj[key], notifiers);
-    }
-}
-
-function _makeReactive (
+var makeReactive = (function() {
+    
+ function _makeReactive (
   object,
   key,
   val,
@@ -61,7 +57,16 @@ function _makeReactive (
   if (val === Object(val)) {
      makeReactive(val, notifiers);
   }
-}
+} 
+   
+   function makeReactive(obj, notifiers) {
+    for(const key in obj) {
+        _makeReactive(obj, key, obj[key], notifiers);
+    }
+   }
+
+   return makeReactive;
+})();
 </script>
 </head>
 <body>
