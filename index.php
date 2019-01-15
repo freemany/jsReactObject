@@ -2,18 +2,70 @@
 <html>
 <head>
 <script>
-function _my_setter(obj, key, val) {
-    _makeReactive(obj, key, val);
-}
-
 function makeReactive(obj, notifiers) {
     for(const key in obj) {
         _makeReactive(obj, key, obj[key], notifiers);
     }
 }
-/**
- * Define a reactive property on an Object.
- */
+
+function _makeReactive (
+  object,
+  key,
+  val,
+  notifiers
+) { 
+   const obj = object;
+
+   obj.setterCallback = notifiers && notifiers[0] && typeof notifiers[0] === 'function' ? notifiers[0] : function() {};
+   obj.getterCallback = notifiers && notifiers[1] && typeof notifiers[1] === 'function' ? notifiers[1] : function() {};
+
+  const property = Object.getOwnPropertyDescriptor(obj, key)
+  if (property && property.configurable === false) {
+    return
+  }
+
+    if (!obj.set) {
+     obj.set = function(key, val) {
+              obj[key] = val;
+              _makeReactive(obj, key, val, notifiers);
+     };
+     obj.get = function() {
+         let result = [];
+         Object.keys(this).forEach((k, i) => {
+              if (k === 'set' || k === 'get' || k === 'setterCallback' || k === 'getterCallback') return;
+              result[k] = obj[k];
+         })
+
+         return result;
+     }
+    }
+
+  Object.defineProperty(obj, key, {
+    get: function reactiveGetter () {
+      obj.getterCallback.call(obj, key, val);
+  
+      return val;
+    },
+    set: function reactiveSetter (newVal) {
+        const oldVal = val;
+      /* eslint-disable no-self-compare */
+      if (newVal === val || (newVal !== newVal && val !== val)) {
+        return
+      }
+     val = newVal
+ 
+    obj.setterCallback.call(obj, key, oldVal, newVal);
+    }
+  });
+
+  if (val === Object(val)) {
+     makeReactive(val, notifiers);
+  }
+}
+</script>
+</head>
+<body>
+<script>
 function notify(key, val) {
     console.log.apply(console.log, [this, key, val]);
 }
@@ -26,110 +78,13 @@ function getterNotify(key, val) {
     console.log.apply(console.log, ['get', this, key, val]);
 }
 
-function _makeReactive (
-  object,
-  key,
-  val,
-  notifiers
-//   customSetter,
-//   shallow
-) { 
-   const obj = object;
 
-   obj.setterCallback = notifiers && notifiers[0] && typeof notifiers[0] === 'function' ? notifiers[0] : function() {};
-   obj.getterCallback = notifiers && notifiers[1] && typeof notifiers[1] === 'function' ? notifiers[1] : function() {};
-//   const dep = new Dep()
-
-  const property = Object.getOwnPropertyDescriptor(obj, key)
-  if (property && property.configurable === false) {
-    return
-  }
-
-  // cater for pre-defined getter/setters
-//   const getter = property && property.get
-//   const setter = property && property.set
-//   if ((!getter || setter) && arguments.length === 2) {
-//     val = obj[key]
-//   }
-
-//   if (!obj.$set) {
-//      Object.defineProperty(obj, '$set', { 
-//          value: function(key, val) {
-//                 _my_setter(obj, key, val);
-//      }});
-//   }
-
-    if (!obj.set) {
-     obj.set =  function(key, val) {
-                _my_setter(this, key, val);
-     };
-     obj.get = function() {
-         let result = [];
-         Object.keys(this).forEach((k, i) => {
-              if (k === 'set' || k === 'get') return;
-              result[k] = obj[k];
-         })
-
-         return result;
-     }
-    }
-
-//   let childOb = !shallow && observe(val)
-  Object.defineProperty(obj, key, {
-    // enumerable: true,
-    // configurable: true,
-    get: function reactiveGetter () {
-    //   const value = val
-    //   if (Dep.target) {
-    //     dep.depend()
-    //     if (childOb) {
-    //       childOb.dep.depend()
-    //       if (Array.isArray(value)) {
-    //         dependArray(value)
-    //       }
-    //     }
-    //   }
- 
-      obj.getterCallback.call(obj, key, val);
-  
-      return val;
-    },
-    set: function reactiveSetter (newVal) {
-        const oldVal = val;
-      /* eslint-disable no-self-compare */
-      if (newVal === val || (newVal !== newVal && val !== val)) {
-        return
-      }
-      /* eslint-enable no-self-compare */
-    //   if (process.env.NODE_ENV !== 'production' && customSetter) {
-    //     customSetter()
-    //   }
-      // #7981: for accessor properties without setter
-    //   if (getter && !setter) return
-    //   if (setter) {
-    //     setter.call(obj, newVal)
-    //   } else {
-        val = newVal
-    //   }
-    //   childOb = !shallow && observe(newVal)
-    //   dep.notify()
-    // notify('set ', obj, key, value)
-  
-    obj.setterCallback.call(obj, key, oldVal, newVal);
-  
-    }
-  });
-}
-</script>
-</head>
-<body>
-<script>
 let test = {
-    foo: 'foo',
+    foo: { foofoo: 'foofoo'},
     bar: 'bar',
 };
 
-makeReactive(test, [setterNotify, getterNotify]);
+makeReactive(test, [setterNotify]);
 
 // let myPromise = {
 //     result: null,
