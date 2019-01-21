@@ -1,9 +1,46 @@
 <!doctype html>
 <html>
 <head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.9.1/underscore.js"></script>
 <script>
+ _.templateSettings = {
+    evaluate: /<%([\s\S]+?)%>/g,
+    interpolate: /{{([\s\S]+?)}}/g,
+    escape: /<%-([\s\S]+?)%>/g
+  };
+class Template {
+    constructor(options) {
+      this.$el = options.$el;
+      this.template = options.template;
+      this.complied = _.template(this.template);
+      this.data = options.data;
+    }
+
+    render() {
+       this.$el.html(this.complied(this.data));
+       return this;
+    }
+}
+
+var makeReactTemplate = function(opts, data) {
+
+   const t = (new Template({
+       $el: opts.$el,
+       template: opts.template,
+       data: data,
+   })).render();
+   
+   if (data) {
+    makeReactive(data, [function() {
+       t.render();
+    }]);
+   }
+  
+   return t;
+}
 var makeReactive = (function() {
-    
+
  function _makeReactive (
   object,
   key,
@@ -70,7 +107,33 @@ var makeReactive = (function() {
 </script>
 </head>
 <body>
+<div id="test"></div>
 <script>
+
+const data = { title: 'foo', children: ['tintin', 'tia', 'wynn']}
+
+// const v = (new Template({
+//     $el: $('#test'),
+//     data: data,
+//     template: `<h5>my title: {{data.title}}</h5>
+//                <% for(var i=0; i<data.children.length; i++) { %>
+//                    <p>{{ data.children[i] }}</p>
+//                <% } %>`,
+// })).render();
+
+// makeReactive(data, [function() {
+//     v.render();
+// }]);
+
+makeReactTemplate({
+    $el: $('#test'),
+    template: `<h5>my title: {{data.title}}</h5>
+               <% for(var i=0; i<data.children.length; i++) { %>
+                   <p>{{ data.children[i] }}</p>
+               <% } %>`,
+}, data);
+
+
 function notify(key, val) {
     console.log.apply(console.log, [this, key, val]);
 }
