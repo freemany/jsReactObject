@@ -2,29 +2,163 @@
 <html>
 <head>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.9.1/underscore.js"></script>
 <script>
- _.templateSettings = {
+// By default, Underscore uses ERB-style template delimiters, change the
+  // following template settings to use alternative delimiters.
+  var _ = _ || {};
+  _.templateSettings = {
     evaluate: /<%([\s\S]+?)%>/g,
     interpolate: /{{([\s\S]+?)}}/g,
-    escape: /<%-([\s\S]+?)%>/g
+    escape: /<%-([\s\S]+?)%>/g,
+    clickEvent: /@click="([\s\S]+?)"/g,
   };
+
+  // When customizing `templateSettings`, if you don't want to define an
+  // interpolation, evaluation or escaping regex, we need one that is
+  // guaranteed not to match.
+  var noMatch = /(.)^/;
+
+  // Certain characters need to be escaped so that they can be put into a
+  // string literal.
+  var escapes = {
+    "'": "'",
+    '\\': '\\',
+    '\r': 'r',
+    '\n': 'n',
+    '\u2028': 'u2028',
+    '\u2029': 'u2029'
+  };
+
+  var escapeRegExp = /\\|'|\r|\n|\u2028|\u2029/g;
+
+  var escapeChar = function(match) {
+    return '\\' + escapes[match];
+  };
+
+  // JavaScript micro-templating, similar to John Resig's implementation.
+  // Underscore templating handles arbitrary delimiters, preserves whitespace,
+  // and correctly escapes quotes within interpolated code.
+  // NB: `oldSettings` only exists for backwards compatibility.
+  _.template = function(text, settings, oldSettings) {
+    if (!settings && oldSettings) settings = oldSettings;
+    settings = $.extend({}, settings, _.templateSettings);
+
+    // events
+    var events = [];
+
+    // Combine delimiters into one regular expression via alternation.
+    var matcher = RegExp([
+      (settings.escape || noMatch).source,
+      (settings.interpolate || noMatch).source,
+      (settings.evaluate || noMatch).source,
+      (settings.clickEvent || noMatch).source
+    ].join('|') + '|$', 'g');
+
+    // Compile the template source, escaping string literals appropriately.
+    var index = 0;
+    var source = "__p+='";
+    text.replace(matcher, function(match, escape, interpolate, evaluate, clickEvent, offset) {
+      source += text.slice(index, offset).replace(escapeRegExp, escapeChar);
+      index = offset + match.length;
+
+      if (escape) {
+        source += "'+\n((__t=(" + escape + "))==null?'':_.escape(__t))+\n'";
+      } else if (interpolate) {
+        source += "'+\n((__t=(" + interpolate + "))==null?'':__t)+\n'";
+      } else if (evaluate) { 
+        source += "';\n" + evaluate + "\n__p+='";
+      } else if (clickEvent) { console.log(clickEvent)
+        const token = 'jd-' + String(Math.random()).substr(7);
+        source +=  token;  
+        events.push({id: token, event: 'click', func: clickEvent});
+      }
+
+      // Adobe VMs need the match returned to produce the correct offset.
+      return match;
+    });
+    source += "';\n";
+
+    // If a variable is not specified, place data values in local scope.
+    if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
+
+    source = "var __t,__p='',__j=Array.prototype.join," +
+      "print=function(){__p+=__j.call(arguments,'');};\n" +
+      source + 'return __p;\n';
+    // console.log(source)
+    var render;
+    try {
+      render = new Function(settings.variable || 'obj', '_', source);
+    } catch (e) {
+      e.source = source;
+      throw e;
+    }
+
+    var template = function(data) {
+      return {template: render.call(this, data, _), event: events};
+    };
+
+    // Provide the compiled source as a convenience for precompilation.
+    var argument = settings.variable || 'obj';
+    template.source = 'function(' + argument + '){\n' + source + '}';
+
+    return template;
+  };
+</script>
+<script>
+//  _.templateSettings = {
+//     evaluate: /<%([\s\S]+?)%>/g,
+//     interpolate: /{{([\s\S]+?)}}/g,
+//     escape: /<%-([\s\S]+?)%>/g
+//   };
+
+// function clicked() {console.log('dsfasdfd')}  
 class Template {
     constructor(options) {
       this.$el = options.$el;
       this.template = options.template;
       this.complied = _.template(this.template);
       this.data = options.data;
+      this.methods = options.methods;
+      this.dynamic = options.dynamic;
     }
 
     render(data) { 
-
        const d = data || this.data; 
+       let res;
+
+       if (true === this.dynamic) {
+        res = _.template(this.template)(d);
+       } else {
+        res = this.complied(d);
+       }
+       const template = res.template;
+       const event = res.event;
+
+       this.$innerEl = $(template); 
+       this.domEvents = event;
+
        if (!this.$el) {
-          return this.complied(d);
+          this._initEvents();
+          return this.$innerEl[0].outerHTML;
        } 
-       this.$el.html(this.complied(d));
+       
+       this.$el.html(this.$innerEl[0]);
+       this._initEvents();
        return this;
+    }
+
+    _initEvents() {
+       const that = this;
+       this.domEvents.forEach((evt) => {
+           const $found = that.$innerEl.find('[' + evt.id + ']');
+           if ($found.length > 0) {
+               if (that.methods && that.methods[evt.func]) {
+                   $found.bind(evt.event, function(e) {
+                       that.methods[evt.func].call(that, e, $found);
+                   })
+               }
+           }
+       })
     }
 }
 
@@ -34,6 +168,8 @@ var makeReactTemplate = function(opts, data) {
        $el: opts.$el,
        template: opts.template,
        data: data,
+       methods: opts.methods,
+       dynamic: opts.dynamic,
    }));
 
    if (data && opts.$el) {
@@ -109,6 +245,13 @@ var makeReactive = (function() {
 
    return makeReactive;
 })();
+
+var makeDomEvent = function(ctx, funcName) {
+     if (undefined !== ctx['methods'] && typeof ctx['methods'][funcName] === 'function') {
+        return ctx['methods'][funcName].call(ctx);
+     }
+     return;
+}
 </script>
 </head>
 <body>
@@ -117,39 +260,40 @@ var makeReactive = (function() {
 
 const data = { title: 'foo', children: [{name: 'tintin'}, {name: 'tia'}, {name: 'wynn'}], subject: {today: 'today', yesterday: 'yesterday'}, foo: {bar: {coo: 'coo'}}}
 
-// const v = (new Template({
-//     $el: $('#test'),
-//     data: data,
-//     template: `<h5>my title: {{data.title}}</h5>
-//                <% for(var i=0; i<data.children.length; i++) { %>
-//                    <p>{{ data.children[i] }}</p>
-//                <% } %>`,
-// })).render();
-
-// makeReactive(data, [function() {
-//     v.render();
-// }]);
-
-
 const child = makeReactTemplate({ 
     template: '<h2>{{coo}}</h2>',
 }, data.foo.bar)
 
 const li = makeReactTemplate({ 
-    template: '<li>{{name}}</li>',
+    template: '<li @click="click">{{name}}</li>',
+    dynamic: true,
+    methods: {
+        click() {
+            console.log('<li>---------</li>')
+        }
+    }
 });
 
 makeReactTemplate({
     $el: $('#app'),
-    template: `{{ child.render() }}
-              <h1> today subject: {{data.subject.today}} </h1>
-              <h1> yesterday subject: {{data.subject.yesterday}} </h1>
+    template: `<div>{{ child.render() }}
+              <h1 @click="clicked"> today subject: {{data.subject.today}} </h1>
+              <h1 @click="click1"> yesterday subject: {{data.subject.yesterday}} </h1>
                <h5>my title: {{data.title}}</h5>
                <ul>
                <% for(var i=0; i<data.children.length; i++) { %>
                    {{ li.render(data.children[i]) }}
                <% } %>
-               </ul>`,
+               </ul></div>`,
+    methods:{
+        clicked(e, $el) {
+            e.preventDefault();
+            console.log('clicked', e, $el[0])
+        },
+        click1() {
+            console.log('click1')
+        }
+    }           
 }, data).render();
 
 
@@ -235,10 +379,10 @@ function service() {
 const p = service();
 
 p.then((res) => {
-   if ('freeman' === res) alert(res + ', my own promise');
+   if ('freeman' === res) console.log(res + ', my own promise');
 })
 p.then((res) => {
-   if ('yam' === res) alert(res + ', my own promise');
+   if ('yam' === res) console.log(res + ', my own promise');
 })
 
 // function service() {
