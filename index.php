@@ -17,21 +17,26 @@ class Template {
       this.data = options.data;
     }
 
-    render() {
-       this.$el.html(this.complied(this.data));
+    render(data) { 
+
+       const d = data || this.data; 
+       if (!this.$el) {
+          return this.complied(d);
+       } 
+       this.$el.html(this.complied(d));
        return this;
     }
 }
 
-var makeReactTemplate = function(opts, data) {
+var makeReactTemplate = function(opts, data) { 
 
    const t = (new Template({
        $el: opts.$el,
        template: opts.template,
        data: data,
-   })).render();
-   
-   if (data) {
+   }));
+
+   if (data && opts.$el) {
     makeReactive(data, [function() {
        t.render();
     }]);
@@ -107,10 +112,10 @@ var makeReactive = (function() {
 </script>
 </head>
 <body>
-<div id="test"></div>
+<div id="app"></div>
 <script>
 
-const data = { title: 'foo', children: ['tintin', 'tia', 'wynn']}
+const data = { title: 'foo', children: [{name: 'tintin'}, {name: 'tia'}, {name: 'wynn'}], subject: {today: 'today', yesterday: 'yesterday'}, foo: {bar: {coo: 'coo'}}}
 
 // const v = (new Template({
 //     $el: $('#test'),
@@ -125,13 +130,27 @@ const data = { title: 'foo', children: ['tintin', 'tia', 'wynn']}
 //     v.render();
 // }]);
 
+
+const child = makeReactTemplate({ 
+    template: '<h2>{{coo}}</h2>',
+}, data.foo.bar)
+
+const li = makeReactTemplate({ 
+    template: '<li>{{name}}</li>',
+});
+
 makeReactTemplate({
-    $el: $('#test'),
-    template: `<h5>my title: {{data.title}}</h5>
+    $el: $('#app'),
+    template: `{{ child.render() }}
+              <h1> today subject: {{data.subject.today}} </h1>
+              <h1> yesterday subject: {{data.subject.yesterday}} </h1>
+               <h5>my title: {{data.title}}</h5>
+               <ul>
                <% for(var i=0; i<data.children.length; i++) { %>
-                   <p>{{ data.children[i] }}</p>
-               <% } %>`,
-}, data);
+                   {{ li.render(data.children[i]) }}
+               <% } %>
+               </ul>`,
+}, data).render();
 
 
 function notify(key, val) {
