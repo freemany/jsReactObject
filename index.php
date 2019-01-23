@@ -3,6 +3,15 @@
 <head>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
 <script>
+var Utils = {};
+Utils.remove = function(arr, item) {
+  if (arr.length) {
+    const index = arr.indexOf(item)
+    if (index > -1) {
+      return arr.splice(index, 1)
+    }
+  }
+}
 // By default, Underscore uses ERB-style template delimiters, change the
   // following template settings to use alternative delimiters.
   var _ = _ || {};
@@ -67,10 +76,12 @@
         source += "'+\n((__t=(" + interpolate + "))==null?'':__t)+\n'";
       } else if (evaluate) { 
         source += "';\n" + evaluate + "\n__p+='";
-      } else if (clickEvent) { console.log(clickEvent)
-        const token = 'jd-' + String(Math.random()).substr(7);
-        source +=  token;  
+      } else if (clickEvent) { 
+        const token = "jd-" + String(Math.random()).substr(7);
+        const add = token + " data-event-key=" + token + " data-event onClick=runDomEvent(event,\"" + token + "\")";
+        source +=  add;  
         events.push({id: token, event: 'click', func: clickEvent});
+        EventManager[token] = {event: 'click', func: clickEvent};
       }
 
       // Adobe VMs need the match returned to produce the correct offset.
@@ -111,6 +122,17 @@
 //     escape: /<%-([\s\S]+?)%>/g
 //   };
 
+var EventManager = {};
+var runDomEvent = function(e, key) { 
+     if (EventManager[key] && EventManager[key]['func'] && EventManager[key]['ctx'] && EventManager[key]['target'] && EventManager[key]['ctx']['methods']) {
+
+           return EventManager[key]['ctx']['methods'][EventManager[key]['func']].call(EventManager[key]['ctx'], 
+           e, EventManager[key]['target'], 
+           EventManager[key]['data'] && typeof EventManager[key]['data'].get === 'function' ? EventManager[key]['data'].get() : EventManager[key]['data']);
+     }
+}
+
+
 // function clicked() {console.log('dsfasdfd')}  
 class Template {
     constructor(options) {
@@ -138,7 +160,7 @@ class Template {
        this.domEvents = event;
 
        if (!this.$el) {
-          this._initEvents();
+          this._initEvents(data);
           return this.$innerEl[0].outerHTML;
        } 
        
@@ -147,15 +169,21 @@ class Template {
        return this;
     }
 
-    _initEvents() {
+    _initEvents(data) { 
+        // console.log(flag, this.domEvents, this.$innerEl[0])
        const that = this;
        this.domEvents.forEach((evt) => {
-           const $found = that.$innerEl.find('[' + evt.id + ']');
-           if ($found.length > 0) {
-               if (that.methods && that.methods[evt.func]) {
-                   $found.bind(evt.event, function(e) {
-                       that.methods[evt.func].call(that, e, $found);
-                   })
+           const $found = $('<div>' + that.$innerEl[0].outerHTML + '</div>').find('[' + evt.id + ']'); 
+           if ($found.length > 0) { 
+            //    console.log(flag, that.methods, that.methods[evt.func])
+               if (that.methods && that.methods[evt.func]) { 
+                   EventManager[evt.id]['target'] = $found;
+                   EventManager[evt.id]['ctx'] = that;
+                   EventManager[evt.id]['data'] = data;
+                //    console.log(evt.id, EventManager[evt.id]);
+                //    $found.bind(evt.event, function(e) {
+                    //    that.methods[evt.func].call(that, e, $found);
+                //    })
                }
            }
        })
@@ -205,11 +233,24 @@ var makeReactive = (function() {
      };
      obj.get = function() {
          let result = [];
-         Object.keys(this).forEach((k, i) => {
+         if (Array.isArray(this)) {
+            for(let i=0; i<this.length; i++) {
+                let item = {};
+                Object.keys(this[i]).forEach((k) => { 
+                  if (k === 'set' || k === 'get' || k === 'setterCallback' || k === 'getterCallback') return;
+                     item[k] = this[i][k]
+                })
+
+                result.push(item);
+            }
+         } else {
+            result = {}; 
+            Object.keys(this).forEach((k, i) => { 
               if (k === 'set' || k === 'get' || k === 'setterCallback' || k === 'getterCallback') return;
               result[k] = obj[k];
-         })
-
+            })
+         }
+         
          return result;
      }
     }
@@ -265,11 +306,19 @@ const child = makeReactTemplate({
 }, data.foo.bar)
 
 const li = makeReactTemplate({ 
-    template: '<li @click="click">{{name}}</li>',
+    template: '<li @click="click">click to delete "{{name}}"</li>',
     dynamic: true,
     methods: {
-        click() {
-            console.log('<li>---------</li>')
+        click(e, $el, d) {
+            console.log('<li>---------</li>', d)
+            const children = data.children.get();
+            let res = [];
+            for(let i=0; i<children.length; i++) {
+                if (children[i].name !== d.name) {
+                      res.push({name: children[i].name});
+                }
+            }
+            data.set('children', res);
         }
     }
 });
@@ -284,14 +333,26 @@ makeReactTemplate({
                <% for(var i=0; i<data.children.length; i++) { %>
                    {{ li.render(data.children[i]) }}
                <% } %>
-               </ul></div>`,
+               </ul>
+               <button @click="add">+</button>
+               </div>`,
     methods:{
         clicked(e, $el) {
             e.preventDefault();
-            console.log('clicked', e, $el[0])
+            console.log('clicked')
         },
         click1() {
             console.log('click1')
+        },
+        add(e, $el) {
+            const names = ['tom', 'jon', 'tim', 'tian', 'sandie', 'ben', 'dan', 'don', 'zen', 'lucu'];
+            const name = names[Math.floor(Math.random() * Math.floor(10))];
+            let res = [];
+            for(let i=0; i<data.children.length; i++) {
+                res.push({name: data.children[i].name});
+            }
+            res.push({name});
+            data.set('children', res);
         }
     }           
 }, data).render();
