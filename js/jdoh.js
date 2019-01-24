@@ -1,3 +1,4 @@
+
 var uuid = function() {
     return Math.random().toString(36).substring(2) + (new Date()).getTime().toString(36);
 };
@@ -11,6 +12,8 @@ var _ = _ || {};
     escape: /<%-([\s\S]+?)%>/g,
     clickEvent: /@click="([\s\S]+?)"/g,
     keyupEvent: /@keyup="([\s\S]+?)"/g,
+    dom: /#([\s\S]+?)#/g,
+    model: /jd-model="([\s\S]+?)"/g,
   };
 
   // When customizing `templateSettings`, if you don't want to define an
@@ -52,13 +55,15 @@ var _ = _ || {};
       (settings.interpolate || noMatch).source,
       (settings.evaluate || noMatch).source,
       (settings.clickEvent || noMatch).source,
-      (settings.keyupEvent || noMatch).source
+      (settings.keyupEvent || noMatch).source,
+      (settings.dom || noMatch).source,
+      (settings.model || noMatch).source
     ].join('|') + '|$', 'g');
 
     // Compile the template source, escaping string literals appropriately.
     var index = 0;
     var source = "__p+='";
-    text.replace(matcher, function(match, escape, interpolate, evaluate, clickEvent, keyupEvent, offset) {
+    text.replace(matcher, function(match, escape, interpolate, evaluate, clickEvent, keyupEvent, dom, model, offset) {
       source += text.slice(index, offset).replace(escapeRegExp, escapeChar);
       index = offset + match.length;
 
@@ -80,6 +85,14 @@ var _ = _ || {};
         source +=  add;  
         events.push({id: token, event: 'keyup', func: keyupEvent});
         EventManager[token] = {event: 'keyup', func: keyupEvent};
+      } else if (dom) { 
+        const token = "jd-" + String(Math.random()).substr(7);
+        source +=  token;  
+        DomManager[token] = dom;
+      } else if (model) { 
+        const token = "jd-" + String(Math.random()).substr(7);
+        source +=  token + " oninput=runModelEvent(this,event,\"" + token + "\")";;  
+        ModelManager[token] = {key: model};
       }
 
       // Adobe VMs need the match returned to produce the correct offset.
@@ -113,7 +126,9 @@ var _ = _ || {};
     return template;
   };
 
+var ModelManager = {};
 var EventManager = {};
+var DomManager = {};    
 var runDomEvent = function(el, e, key) { 
      if (EventManager[key] && EventManager[key]['func'] && EventManager[key]['ctx'] && EventManager[key]['target'] && EventManager[key]['ctx']['methods']) {
 
@@ -122,6 +137,12 @@ var runDomEvent = function(el, e, key) {
            EventManager[key]['data'] && typeof EventManager[key]['data'].get === 'function' ? EventManager[key]['data'].get() : EventManager[key]['data']);
      }
 };
+
+var runModelEvent = function(el, e, key) {
+    if (ModelManager[key]) { 
+        ModelManager[key]['ctx'][ModelManager[key]['key']] = el.value;
+    }
+}
 
 class Template {
     constructor(options) {
@@ -149,22 +170,44 @@ class Template {
        this.domEvents = event;
 
        if (!this.$el) {
+          this._pickupDom();
           this._initEvents(data);
+          this._initModel();
           return this.$innerEl[0].outerHTML;
        } 
        
        this.$el.html(this.$innerEl[0]);
        this._initEvents();
+       this._pickupDom();
+       this._initModel();
        return this;
     }
 
+    _pickupDom() {
+       for(const key in DomManager) {
+        const $found = $('<div>' + this.$innerEl[0].outerHTML + '</div>').find('[' + key + ']'); 
+        if ($found.length > 0) {
+              this[DomManager[key]] = function() {
+                  return $('body').find('[' + key + ']');
+              }; 
+        }
+       }
+    }
+
+    _initModel() {
+        for(const key in ModelManager) {
+        const $found = $('<div>' + this.$innerEl[0].outerHTML + '</div>').find('[' + key + ']'); 
+        if ($found.length > 0 && undefined === ModelManager[key]['ctx']) { 
+              ModelManager[key]['ctx'] = this;
+        }
+       }
+    }
+
     _initEvents(data) { 
-        // console.log(flag, this.domEvents, this.$innerEl[0])
        const that = this;
        this.domEvents.forEach((evt) => {
            const $found = $('<div>' + that.$innerEl[0].outerHTML + '</div>').find('[' + evt.id + ']'); 
            if ($found.length > 0) { 
-            //    console.log(flag, that.methods, that.methods[evt.func])
                if (that.methods && that.methods[evt.func]) { 
                    EventManager[evt.id]['target'] = that.$innerEl;
                    EventManager[evt.id]['ctx'] = that;
@@ -176,17 +219,16 @@ class Template {
 }
 
 var makeReactTemplate = function(opts, data) { 
-
-   const t = (new Template({
+   const t = new Template({
        $el: opts.$el,
        template: opts.template,
        data: data,
        methods: opts.methods,
        dynamic: opts.dynamic,
-   }));
+   });
 
    if (data && opts.$el) {
-    makeReactive(data, [function() {
+    makeReactObject(data, [function() {
        t.render();
     }]);
    }
@@ -194,9 +236,9 @@ var makeReactTemplate = function(opts, data) {
    return t;
 };
 
-var makeReactive = (function() {
+var makeReactObject = (function() {
 
- function _makeReactive (
+ function _makeReactObject (
   object,
   key,
   val,
@@ -215,7 +257,7 @@ var makeReactive = (function() {
     if (!obj.set) {
      obj.set = function(key, val) {
               obj[key] = val;
-              _makeReactive(obj, key, val, notifiers);
+              _makeReactObject(obj, key, val, notifiers);
      };
      obj.get = function() {
          let result = [];
@@ -260,15 +302,15 @@ var makeReactive = (function() {
   });
 
   if (val === Object(val)) {
-     makeReactive(val, notifiers);
+    makeReactObject(val, notifiers);
   }
 } 
    
-   function makeReactive(obj, notifiers) {
+   function makeReactObject(obj, notifiers) {
     for(const key in obj) {
-        _makeReactive(obj, key, obj[key], notifiers);
+        _makeReactObject(obj, key, obj[key], notifiers);
     }
    }
 
-   return makeReactive;
-})()
+   return makeReactObject;
+})();
