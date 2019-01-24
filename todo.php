@@ -16,6 +16,7 @@ var _ = _ || {};
     escape: /<%-([\s\S]+?)%>/g,
     clickEvent: /@click="([\s\S]+?)"/g,
     keyupEvent: /@keyup="([\s\S]+?)"/g,
+    dom: /#([\s\S]+?)#/g,
   };
 
   // When customizing `templateSettings`, if you don't want to define an
@@ -57,13 +58,14 @@ var _ = _ || {};
       (settings.interpolate || noMatch).source,
       (settings.evaluate || noMatch).source,
       (settings.clickEvent || noMatch).source,
-      (settings.keyupEvent || noMatch).source
+      (settings.keyupEvent || noMatch).source,
+      (settings.dom || noMatch).source
     ].join('|') + '|$', 'g');
 
     // Compile the template source, escaping string literals appropriately.
     var index = 0;
     var source = "__p+='";
-    text.replace(matcher, function(match, escape, interpolate, evaluate, clickEvent, keyupEvent, offset) {
+    text.replace(matcher, function(match, escape, interpolate, evaluate, clickEvent, keyupEvent, dom, offset) {
       source += text.slice(index, offset).replace(escapeRegExp, escapeChar);
       index = offset + match.length;
 
@@ -85,6 +87,10 @@ var _ = _ || {};
         source +=  add;  
         events.push({id: token, event: 'keyup', func: keyupEvent});
         EventManager[token] = {event: 'keyup', func: keyupEvent};
+      } else if (dom) { 
+        const token = "jd-" + String(Math.random()).substr(7);
+        source +=  token;  
+        DomManager[token] = dom;
       }
 
       // Adobe VMs need the match returned to produce the correct offset.
@@ -119,6 +125,7 @@ var _ = _ || {};
   };
 
 var EventManager = {};
+var DomManager = {};    
 var runDomEvent = function(el, e, key) { 
      if (EventManager[key] && EventManager[key]['func'] && EventManager[key]['ctx'] && EventManager[key]['target'] && EventManager[key]['ctx']['methods']) {
 
@@ -154,13 +161,26 @@ class Template {
        this.domEvents = event;
 
        if (!this.$el) {
+          this._pickupDom();
           this._initEvents(data);
           return this.$innerEl[0].outerHTML;
        } 
        
        this.$el.html(this.$innerEl[0]);
        this._initEvents();
+       this._pickupDom();
        return this;
+    }
+
+    _pickupDom() {
+       for(const key in DomManager) {
+        const $found = $('<div>' + this.$innerEl[0].outerHTML + '</div>').find('[' + key + ']'); 
+        if ($found.length > 0) {
+              this[DomManager[key]] = function() {
+                  return $('body').find('[' + key + ']');
+              }; 
+        }
+       }
     }
 
     _initEvents(data) { 
@@ -301,12 +321,14 @@ const li = makeReactTemplate({
               <% } else { %>
                 <input type="text" value="{{name}}" onfocus="this.select()">
               <% } %>  
-               <button @click="delete">-</button>
+              <button @click="delete">-</button>
               <button @click="makeDone">{{done === "" ? "done" : "undone"}}</button>
               <button @click="startEdit">{{editting === false ? "edit" : "save"}}</button></li>`,
     dynamic: true,
     methods: {
         startEdit(e, el, item) {
+            e.preventDefault();
+
             const list = todoData.list.get();
             for(let i=0; i < list.length; i++) {
                 if (list[i].id === item.id) {
@@ -322,6 +344,8 @@ const li = makeReactTemplate({
             todoData.set('list', list);
         },
         makeDone(e, el, item) {
+            e.preventDefault();
+
             console.log('todo done', item)
             const list = todoData.list.get();
             let res = [];
@@ -335,6 +359,8 @@ const li = makeReactTemplate({
             todoData.set('list', res);
         },
         delete(e, el, item) {
+            e.preventDefault();
+
             const list = todoData.list.get();
             console.log('delete', item, list)
             let res = [];
@@ -357,16 +383,17 @@ makeReactTemplate({
                    {{ li.render(todoData.list[i]) }}
                <% } %>
                </ul>
-               <input type='text' value="{{todoData.newValue}}"><button @click="add">+</button>
+               <input type='text' value="{{todoData.newValue}}" #new# ><button @click="add">+</button>
                </div>`,
     methods:{
-        add(e, el) {
-            const $input = $(el).prev();
-            const name = $input.val();
+        add(e, el) { 
+            e.preventDefault();
+            const name = this.new().val();
             let res = typeof todoData.list.get === 'function' ? todoData.list.get() : [];
             const newItem = {name: name, id: uuid(), done: '', editting: false};
             res.push(newItem);
-            console.log('add', newItem)
+            console.log('add', newItem);
+            todoData.newValue = '';
             todoData.set('list', res);
         }
     }           
