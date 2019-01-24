@@ -78,6 +78,22 @@ myPromise.all = (arrP) => {
    }
 };
 
+myPromise.resolve = function(p) {
+    const resolver = function(cb) {
+         if (typeof p.then === 'function') {
+             p.then((res) => {
+                cb.call(cb, res);
+             });
+         } else {
+            cb.call(cb, p);
+         }
+    }
+
+    return {
+        then: resolver
+    }
+}
+
 function service(val, timeout) {
     return new myPromise((resolve) => {
         setTimeout(() => {
@@ -97,6 +113,21 @@ myPromise.all([
     service('4tia', 2000)])
 .then((arrRes) => {
     console.log(arrRes);
+});
+
+function promise() {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve('native promise');
+        }, 3000);
+    })
+}
+
+myPromise.resolve(promise()).then((res) => {
+  console.log(res);
+});
+myPromise.resolve('resolve string').then((res) => {
+  console.log(res);
 });
 </script>
 </body>
