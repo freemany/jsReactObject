@@ -3,18 +3,13 @@
 <head>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
 <script>
-var Utils = {};
-Utils.remove = function(arr, item) {
-  if (arr.length) {
-    const index = arr.indexOf(item)
-    if (index > -1) {
-      return arr.splice(index, 1)
-    }
-  }
-}
+var uuid = function() {
+    return Math.random().toString(36).substring(2) + (new Date()).getTime().toString(36);
+};
+
 // By default, Underscore uses ERB-style template delimiters, change the
   // following template settings to use alternative delimiters.
-  var _ = _ || {};
+var _ = _ || {};
   _.templateSettings = {
     evaluate: /<%([\s\S]+?)%>/g,
     interpolate: /{{([\s\S]+?)}}/g,
@@ -122,13 +117,6 @@ Utils.remove = function(arr, item) {
 
     return template;
   };
-</script>
-<script>
-//  _.templateSettings = {
-//     evaluate: /<%([\s\S]+?)%>/g,
-//     interpolate: /{{([\s\S]+?)}}/g,
-//     escape: /<%-([\s\S]+?)%>/g
-//   };
 
 var EventManager = {};
 var runDomEvent = function(el, e, key) { 
@@ -138,10 +126,8 @@ var runDomEvent = function(el, e, key) {
            e, el, 
            EventManager[key]['data'] && typeof EventManager[key]['data'].get === 'function' ? EventManager[key]['data'].get() : EventManager[key]['data']);
      }
-}
+};
 
-
-// function clicked() {console.log('dsfasdfd')}  
 class Template {
     constructor(options) {
       this.$el = options.$el;
@@ -188,10 +174,6 @@ class Template {
                    EventManager[evt.id]['target'] = that.$innerEl;
                    EventManager[evt.id]['ctx'] = that;
                    EventManager[evt.id]['data'] = data;
-                //    console.log(evt.id, EventManager[evt.id]);
-                //    $found.bind(evt.event, function(e) {
-                    //    that.methods[evt.func].call(that, e, $found);
-                //    })
                }
            }
        })
@@ -215,7 +197,8 @@ var makeReactTemplate = function(opts, data) {
    }
   
    return t;
-}
+};
+
 var makeReactive = (function() {
 
  function _makeReactive (
@@ -293,202 +276,101 @@ var makeReactive = (function() {
    }
 
    return makeReactive;
-})();
-
-var makeDomEvent = function(ctx, funcName) {
-     if (undefined !== ctx['methods'] && typeof ctx['methods'][funcName] === 'function') {
-        return ctx['methods'][funcName].call(ctx);
-     }
-     return;
-}
+})()
 </script>
+<style>
+.done {
+    text-decoration: line-through;
+}
+</style>
 </head>
 <body>
 <div id="app"></div>
-<input id="js-title" />
 <script>
 
-const data = { title: 'foo', children: [{name: 'tintin'}, {name: 'tia'}, {name: 'wynn'}], subject: {today: 'today', yesterday: 'yesterday'}, foo: {bar: {coo: 'coo'}}}
-
-const child = makeReactTemplate({ 
-    template: '<h2>{{coo}}</h2>',
-}, data.foo.bar)
+const todoData = {title: 'My todo app', list: [{id: uuid(), name: 'wash', done: '', editting: false}, {id: uuid(), name: 'homework', done: '', editting: false}], newValue: ''};
 
 const Title = makeReactTemplate({ 
-    template: '<h2>React Title: {{title}} </h2>',
-}, data)
+    template: '<h2>{{title}}</h2>',
+}, todoData)
 
 const li = makeReactTemplate({ 
-    template: '<li @click="click">click to delete "{{name}}"</li>',
+    template: `<li class="item {{done}}">
+              <% if (editting === false) { %>
+               <span>{{name}}</span> 
+              <% } else { %>
+                <input type="text" value="{{name}}" onfocus="this.select()">
+              <% } %>  
+               <button @click="delete">-</button>
+              <button @click="makeDone">{{done === "" ? "done" : "undone"}}</button>
+              <button @click="startEdit">{{editting === false ? "edit" : "save"}}</button></li>`,
     dynamic: true,
     methods: {
-        click(e, $el, d) {
-            console.log('<li>---------</li>', d)
-            const children = data.children.get();
+        startEdit(e, el, item) {
+            const list = todoData.list.get();
+            for(let i=0; i < list.length; i++) {
+                if (list[i].id === item.id) {
+                    if (true === list[i].editting) {
+                        list[i].editting = false;
+                        const value = $(el).prev().prev().prev().val();
+                        list[i].name = value;
+                    } else {
+                        list[i].editting = true;
+                    }
+                } 
+            }
+            todoData.set('list', list);
+        },
+        makeDone(e, el, item) {
+            console.log('todo done', item)
+            const list = todoData.list.get();
             let res = [];
-            for(let i=0; i<children.length; i++) {
-                if (children[i].name !== d.name) {
-                      res.push({name: children[i].name});
+            for(let i=0; i < list.length; i++) {
+                let done = list[i].done;
+                if (list[i].id === item.id) {
+                      done = done === '' ? 'done' : '';
+                } 
+                res.push({id: list[i].id, name: list[i].name, done: done, editting: false});
+            }
+            todoData.set('list', res);
+        },
+        delete(e, el, item) {
+            const list = todoData.list.get();
+            console.log('delete', item, list)
+            let res = [];
+            for(let i=0; i < list.length; i++) {
+                if (list[i].id !== item.id) {
+                      res.push(list[i]);
                 }
             }
-            data.set('children', res);
+            todoData.set('list', res);
         }
     }
 });
 
 makeReactTemplate({
     $el: $('#app'),
-    template: `<div>{{ child.render() }}
-              <h1 @click="clicked"> today subject: {{data.subject.today}} </h1>
-              <h1 @click="click1"> yesterday subject: {{data.subject.yesterday}} </h1>
-               {{Title.render()}}
+    template: `<div>
+              {{ Title.render() }}
                <ul>
-               <% for(var i=0; i<data.children.length; i++) { %>
-                   {{ li.render(data.children[i]) }}
+               <% for(var i=0; i < todoData.list.length; i++) { %>
+                   {{ li.render(todoData.list[i]) }}
                <% } %>
                </ul>
-               <button @click="add">+</button>
-               <input type='text' @keyup="keyup" value="{{data.title}}">
+               <input type='text' value="{{todoData.newValue}}"><button @click="add">+</button>
                </div>`,
     methods:{
-        clicked(e, $el) {
-            e.preventDefault();
-            console.log('clicked')
-        },
-        click1() {
-            console.log('click1')
-        },
-        add(e, $el) {
-            const names = ['tom', 'jon', 'tim', 'tian', 'sandie', 'ben', 'dan', 'don', 'zen', 'lucu'];
-            // const name = names[Math.floor(Math.random() * Math.floor(10))];
-            const name = this.inputVal ? this.inputVal : names[Math.floor(Math.random() * Math.floor(10))];
-            let res = [];
-            for(let i=0; i<data.children.length; i++) {
-                res.push({name: data.children[i].name});
-            }
-            res.push({name});
-            data.set('children', res);
-        },
-        keyup(e, el) {
-           this.inputVal = el.value;
-           data.title = this.inputVal;
+        add(e, el) {
+            const $input = $(el).prev();
+            const name = $input.val();
+            let res = typeof todoData.list.get === 'function' ? todoData.list.get() : [];
+            const newItem = {name: name, id: uuid(), done: '', editting: false};
+            res.push(newItem);
+            console.log('add', newItem)
+            todoData.set('list', res);
         }
     }           
-}, data).render();
-
-// input title
-$('#js-title').val(data.title);
-$('#js-title').keyup(function() {
-    data.title = $(this).val();
-});
-
-function notify(key, val) {
-    console.log.apply(console.log, [this, key, val]);
-}
-
-function setterNotify(key, oldVal, newVal) {
-    console.log.apply(console.log, ['set', this, key, oldVal, newVal]);
-}
-
-function getterNotify(key, val) {
-    console.log.apply(console.log, ['get', this, key, val]);
-}
-
-
-let test = {
-    foo: { foofoo: 'foofoo'},
-    bar: 'bar',
-};
-
-makeReactive(test, [setterNotify]);
-
-// let myPromise = {
-//     result: null,
-//     pending: true,
-// };
-
-// makeReactive(myPromise, [function() {
-//      if (this.result !== null) {
-//         alert('fire');
-//      }
-// }]);
-
-// setTimeout(() => {
-//     myPromise.result = true;
-// }, 2000)
-
-// function service() {
-//     return new Promise((resolve) => {
-//         // setTimeout(() => {
-//         //     resolve(true)
-//         // }, 3000)
-//         resolve(true)
-//     })
-// }
-
-// service().then((res) => {
-//   if (true === res) {
-//       alert('native promise')
-//   }
-// })
-
-class myPromise {
-    constructor(resolveCallback) {
-       this.p = {
-           result: null
-       }; 
-       makeReactive(this.p);
-       const that = this; 
-       const resolve = function(val) {
-          setTimeout(() => {
-             that.p.result = val;
-          }, 0)
-       };
-       resolveCallback.call(resolveCallback, resolve)
-    }
-
-    then(callback) {
-        this.p.setterCallback = function(key, val) {
-           return callback.call(callback, this.result);
-        };
-    }
-}
-
-function service() {
-    return new myPromise((resolve) => {
-        setTimeout(() => {
-            resolve('yam')
-        }, 2000);
-    })
-}
-const p = service();
-
-p.then((res) => {
-   if ('freeman' === res) console.log(res + ', my own promise');
-})
-p.then((res) => {
-   if ('yam' === res) console.log(res + ', my own promise');
-})
-
-// function service() {
-//     let myPromise = {
-//        result: null,
-//        pending: true,
-//     };
-
-//     makeReactive(myPromise);
-
-//     setTimeout(() => {
-//        myPromise.result = true;
-//     }, 0);
-//     // myPromise.result = true;
-
-//     return myPromise;
-// }
-
-// service().setterCallback =  function(key, val) {
-//      if (this.result === true) alert('my promise: ' + key + ' ' + val);
-// };
+}, todoData).render();
 </script>
 </body>
 </html>
