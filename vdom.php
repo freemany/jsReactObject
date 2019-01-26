@@ -79,6 +79,12 @@ const diffChildren = (oldVChildren, newVChildren) => {
 const renderElem = ({ tagName, attrs, children }) => {
   const $el = document.createElement(tagName);
 
+  if (attrs.text) {
+    const text = document.createTextNode(attrs.text);
+    delete(attrs.text);
+    $el.appendChild(text);
+  }
+
   // set attributes
   for (const [k, v] of Object.entries(attrs)) {
     $el.setAttribute(k, v);
@@ -156,6 +162,7 @@ const createVApp = (count) => createElement('div', {
     dataCount: count,
   },
   children: [
+    createElement('h1', {attrs: {text: 'asdfsdfsda'}}),
     createElement('input'),
     String(count),
     ...Array.from({ length: count }, () => createElement('img', {
@@ -165,12 +172,12 @@ const createVApp = (count) => createElement('div', {
     })),
   ],
 });
+// console.log(createVApp);
+// let count = 0;
+// let vApp = createVApp(count); console.log(createVApp)
+// const $app = render(vApp);
 
-let count = 0;
-let vApp = createVApp(count); console.log(createVApp)
-const $app = render(vApp);
-
-let $rootEl = mount($app, document.getElementById('app'));
+// let $rootEl = mount($app, document.getElementById('app'));
 
 // setInterval(() => {
 //   const vNewApp = createVApp(Math.floor(Math.random() * 10));
@@ -178,28 +185,62 @@ let $rootEl = mount($app, document.getElementById('app'));
 //   $rootEl = patch($rootEl); 
 //   vApp = vNewApp;
 // }, 2000);
-const html = "<h1 class=foo>hello </h1><ul><li>foo</li><li>bar</li></ul><form><label for=hello></label><input type=text value=freeman /></form><p style=display:none>asdfs  dfd sasdf ++++</p>";
+const html = "<div id=\"app\"><h1 class=foo>hello </h1><ul><li><a href=#>my link</a>foo</li><li>bar</li></ul><form><label for=hello></label><input type=text value=freeman /></form><p style=display:none>asdfs  dfd sasdf ++++</p></div>";
 const $html = $("<div>" + html + "</div>");
 
+// const makeVdom = ($el) => {
+//     const result = [], vd = [];
+//     const $children = $el.children(); 
+
+//     if ($children.length > 0) {
+//         $children.each(function() { 
+//            const attr = this.attributes; 
+//            const el = {
+//             tag: this.tagName.toLowerCase(), 
+//             text: $(this).text(),
+//             attrs: Object.keys(attr).map(index => Object.create({name: attr[index].name, value: attr[index].value})), 
+//             children: makeVdom($(this))};
+//             result.push(tag);
+//         });
+//     }
+
+//     return result;
+// };
+
 const makeVdom = ($el) => {
-    const result = [];
+    const result = [], vd = [];
     const $children = $el.children(); 
+    const textNodes = ['h1', 'h2', 'h3', 'h4', 'h5', 'p', 'span', 'li', 'a'];
 
     if ($children.length > 0) {
         $children.each(function() { 
            const attr = this.attributes; 
-           result.push({
-            tag: this.tagName.toLowerCase(), 
-            text: $(this).text(),
-            attr: Object.keys(attr).map(index => Object.create({name: attr[index].name, value: attr[index].value})), 
-            children: makeVdom($(this))})
+           const items = Object.keys(attr).map(index => Object.create({name: attr[index].name, val: attr[index].value}))
+           const attrs = {};
+           items.forEach((i) => {
+                attrs[i.name] = i.val;
+           });
+           const tagName = this.tagName.toLowerCase();
+           const directText = $(this).clone().children().remove().end().text();
+           if (textNodes.indexOf(tagName) > -1 && directText) { 
+               attrs['text'] = directText;
+           }
+           const el = [
+            tagName, {
+            attrs: attrs, 
+            children: makeVdom($(this))
+           }];
+           result.push(createElement.apply(createElement, el));
         });
     }
 
     return result;
 };
 
-console.log(makeVdom($html));
+let vApp = makeVdom($html)[0]; console.log(vApp)
+const $app = render(vApp);
+
+let $rootEl = mount($app, document.getElementById('app'));
 </script>
 </body>
 </html>
