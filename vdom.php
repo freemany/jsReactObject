@@ -3,8 +3,6 @@
 <head>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
 <script>
-<?php echo file_get_contents(__DIR__ . '/js/jdoh.js'); ?>
-
 const createElement = (tagName, { attrs = {}, children = [] } = {}) => {
   return {
     tagName,
@@ -25,7 +23,7 @@ const diffAttrs = (oldAttrs, newAttrs) => {
   const patches = [];
 
   // set new attributes
-  for (const [k, v] of Object.entries(newAttrs)) {
+  for (const [k, v] of Object.entries(newAttrs)) { 
     patches.push($node => {
       $node.setAttribute(k, v);
       return $node;
@@ -154,63 +152,16 @@ const mount = ($node, $target) => {
 </head>
 <body>
 <div id="app"></div>
-<h1 id="foo">foo</h1><h1 id="bar">bar</h1>
 <script>
-const createVApp = (count) => createElement('div', {
-  attrs: {
-    id: 'app',
-    dataCount: count,
-  },
-  children: [
-    createElement('h1', {attrs: {text: 'asdfsdfsda'}}),
-    createElement('input'),
-    String(count),
-    ...Array.from({ length: count }, () => createElement('img', {
-      attrs: {
-        src: 'https://media.giphy.com/media/cuPm4p4pClZVC/giphy.gif',
-      },
-    })),
-  ],
-});
-// console.log(createVApp);
-// let count = 0;
-// let vApp = createVApp(count); console.log(createVApp)
-// const $app = render(vApp);
 
-// let $rootEl = mount($app, document.getElementById('app'));
-
-// setInterval(() => {
-//   const vNewApp = createVApp(Math.floor(Math.random() * 10));
-//   const patch = diff(vApp, vNewApp);
-//   $rootEl = patch($rootEl); 
-//   vApp = vNewApp;
-// }, 2000);
-const html = "<div id=\"app\"><h1 class=foo>hello </h1><ul><li><a href=#>my link</a>foo</li><li>bar</li></ul><form><label for=hello></label><input type=text value=freeman /></form><p style=display:none>asdfs  dfd sasdf ++++</p></div>";
-const $html = $("<div>" + html + "</div>");
-
-// const makeVdom = ($el) => {
-//     const result = [], vd = [];
-//     const $children = $el.children(); 
-
-//     if ($children.length > 0) {
-//         $children.each(function() { 
-//            const attr = this.attributes; 
-//            const el = {
-//             tag: this.tagName.toLowerCase(), 
-//             text: $(this).text(),
-//             attrs: Object.keys(attr).map(index => Object.create({name: attr[index].name, value: attr[index].value})), 
-//             children: makeVdom($(this))};
-//             result.push(tag);
-//         });
-//     }
-
-//     return result;
-// };
-
-const makeVdom = ($el) => {
+const makeVdom = (function(createElement) {
+  if (typeof createElement !== 'function') {
+      throw new Error('makeVdom depends on createElement but createElement is not available');
+  }
+  function _makeVdom($el) {
     const result = [], vd = [];
     const $children = $el.children(); 
-    const textNodes = ['h1', 'h2', 'h3', 'h4', 'h5', 'p', 'span', 'li', 'a'];
+    const textNodes = ['h1', 'h2', 'h3', 'h4', 'h5', 'p', 'span', 'li', 'a', 'button'];
 
     if ($children.length > 0) {
         $children.each(function() { 
@@ -228,19 +179,123 @@ const makeVdom = ($el) => {
            const el = [
             tagName, {
             attrs: attrs, 
-            children: makeVdom($(this))
+            children: _makeVdom($(this))
            }];
-           result.push(createElement.apply(createElement, el));
+           result.push(createElement.apply(createElement, el)); 
         });
     }
 
     return result;
-};
+  };
 
-let vApp = makeVdom($html)[0]; console.log(vApp)
-const $app = render(vApp);
+  function makeVdom(el) {
+    const $html = $('<div>' + el.outerHTML + '</div>'); 
+    return _makeVdom($html)[0]
+  }
 
-let $rootEl = mount($app, document.getElementById('app'));
+  return makeVdom;
+
+})(createElement);
+
+<?php echo file_get_contents(__DIR__ . '/js/jdoh-vdom.js'); ?>
+
+// let vApp = makeVdom(html); 
+// const $app = render(vApp);
+
+// let $rootEl = mount($app, document.getElementById('app'));
+
+/** Todo app here */
+const todoData = {title: 'My todo app', list: [{id: uuid(), name: 'wash', done: '', editting: false}, {id: uuid(), name: 'homework', done: '', editting: false}], newValue: ''};
+
+const Title = makeReactTemplate({ 
+    template: '<h2>{{title}}</h2>',
+}, todoData)
+
+const li = makeReactTemplate({ 
+    template: `<li class="item {{done}}">
+              <% if (editting === false) { %>
+               <span>{{name}}</span> 
+              <% } else { %>
+                <input type="text" value="{{name}}" onfocus="this.select()" jd-model="edittingItem" >
+              <% } %>  
+              <button @click="delete">-</button>
+              <button @click="makeDone">{{done === "" ? "done" : "undone"}}</button>
+              <button @click="startEdit">{{editting === false ? "edit" : "save"}}</button></li>`,
+    dynamic: true,
+    methods: {
+        startEdit(e, el, item) {
+            e.preventDefault();
+
+            const list = todoData.list.get();
+            for(let i=0; i < list.length; i++) {
+                if (list[i].id === item.id) {
+                    if (true === list[i].editting) {
+                        list[i].editting = false;
+                        // const value = $(el).prev().prev().prev().val();
+                        const value = this.edittingItem; 
+                        list[i].name = value;
+                    } else {
+                        list[i].editting = true;
+                    }
+                } 
+            }
+            todoData.set('list', list);
+        },
+        makeDone(e, el, item) {
+            e.preventDefault();
+
+            console.log('todo done', item)
+            const list = todoData.list.get();
+            let res = [];
+            for(let i=0; i < list.length; i++) {
+                let done = list[i].done;
+                if (list[i].id === item.id) {
+                      done = done === '' ? 'done' : '';
+                } 
+                res.push({id: list[i].id, name: list[i].name, done: done, editting: false});
+            }
+            todoData.set('list', res);
+        },
+        delete(e, el, item) {
+            e.preventDefault();
+
+            const list = todoData.list.get();
+            console.log('delete', item, list)
+            let res = [];
+            for(let i=0; i < list.length; i++) {
+                if (list[i].id !== item.id) {
+                      res.push(list[i]);
+                }
+            }
+            todoData.set('list', res);
+        }
+    }
+});
+
+makeReactTemplate({
+    $el: $('#app'),
+    template: `<div id='app'>
+              {{ Title.render() }}
+               <ul>
+               <% for(var i=0; i < todoData.list.length; i++) { %>
+                   {{ li.render(todoData.list[i]) }}
+               <% } %>
+               </ul>
+               <input type='text' value="{{todoData.newValue}}" jd-model="newItem" ><button @click="add">+</button>
+               </div>`,
+    methods:{
+        add(e, el) { 
+            e.preventDefault();
+            const name = this.newItem;
+            let res = typeof todoData.list.get === 'function' ? todoData.list.get() : [];
+            const newItem = {name: name, id: uuid(), done: '', editting: false};
+            res.push(newItem);
+            console.log('add', newItem);
+            todoData.newValue = '';
+            todoData.set('list', res);
+        }
+    }           
+}, todoData).render();
 </script>
 </body>
 </html>
