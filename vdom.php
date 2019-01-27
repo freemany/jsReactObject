@@ -1,6 +1,11 @@
 <!doctype html>
 <html>
 <head>
+<style>
+.done {
+    text-decoration: line-through;
+}
+</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
 <script>
 const createElement = (tagName, { attrs = {}, children = [] } = {}) => {
@@ -19,13 +24,13 @@ const zip = (xs, ys) => {
   return zipped;
 };
 
-const diffAttrs = (oldAttrs, newAttrs) => {
+const diffAttrs = (oldAttrs, newAttrs) => {  
   const patches = [];
 
   // set new attributes
   for (const [k, v] of Object.entries(newAttrs)) { 
-    patches.push($node => {
-      $node.setAttribute(k, v);
+    patches.push($node => { console.log('$node.setAttribute(k, v);', typeof $node, k, v)
+      if (typeof $node.setAttribute === 'function') $node.setAttribute(k, v);
       return $node;
     });
   }
@@ -47,7 +52,7 @@ const diffAttrs = (oldAttrs, newAttrs) => {
   };
 };
 
-const diffChildren = (oldVChildren, newVChildren) => {
+const diffChildren = (oldVChildren, newVChildren) => { console.log('diffChildren = (oldVChildren, newVChildren)', oldVChildren, newVChildren)
   const childPatches = [];
   oldVChildren.forEach((oldVChild, i) => {
     childPatches.push(diff(oldVChild, newVChildren[i]));
@@ -60,16 +65,19 @@ const diffChildren = (oldVChildren, newVChildren) => {
       return $node;
     });
   }
-
-  return $parent => {
+// console.log('childPatches', childPatches);
+  return $parent => { 
     for (const [patch, child] of zip(childPatches, $parent.childNodes)) {
-      patch(child);
+        if (typeof patch === 'function') {
+            patch(child);
+        }
+      
     }
 
     for (const patch of additionalPatches) {
       patch($parent);
     }
-
+    console.log('$parent', $parent);
     return $parent;
   };
 };
@@ -77,14 +85,15 @@ const diffChildren = (oldVChildren, newVChildren) => {
 const renderElem = ({ tagName, attrs, children }) => {
   const $el = document.createElement(tagName);
 
-  if (attrs.text) {
+  if (attrs.text) { 
     const text = document.createTextNode(attrs.text);
-    delete(attrs.text);
+    // delete(attrs.text);
     $el.appendChild(text);
   }
 
   // set attributes
   for (const [k, v] of Object.entries(attrs)) {
+    if ('text' === k) continue; 
     $el.setAttribute(k, v);
   }
 
@@ -106,7 +115,7 @@ const render = (vNode) => {
 }
 
 const diff = (vOldNode, vNewNode) => {
-  if (vNewNode === undefined) {
+  if (vNewNode === undefined) { console.log('if (vNewNode === undefined)');
     return $node => {
       $node.remove();
       return undefined;
@@ -115,7 +124,7 @@ const diff = (vOldNode, vNewNode) => {
 
   if (typeof vOldNode === 'string' ||
     typeof vNewNode === 'string') {
-    if (vOldNode !== vNewNode) {
+    if (vOldNode !== vNewNode) { console.log('if (vOldNode !== vNewNode)');
       return $node => {
         const $newNode = render(vNewNode);
         $node.replaceWith($newNode);
@@ -126,7 +135,7 @@ const diff = (vOldNode, vNewNode) => {
     }
   }
 
-  if (vOldNode.tagName !== vNewNode.tagName) {
+  if (vOldNode.tagName !== vNewNode.tagName) { console.log('vOldNode.tagName !== vNewNode.tagName');
     return $node => {
       const $newNode = render(vNewNode);
       $node.replaceWith($newNode);
@@ -138,6 +147,7 @@ const diff = (vOldNode, vNewNode) => {
   const patchChildren = diffChildren(vOldNode.children, vNewNode.children);
   
   return $node => { 
+      console.log('$node', $node);
     patchAttrs($node);
     patchChildren($node); 
     return $node;
@@ -173,7 +183,7 @@ const makeVdom = (function(createElement) {
            });
            const tagName = this.tagName.toLowerCase();
            const directText = $(this).clone().children().remove().end().text();
-           if (textNodes.indexOf(tagName) > -1 && directText) { 
+           if (textNodes.indexOf(tagName) > -1 && String(directText) !== '') { 
                attrs['text'] = directText;
            }
            const el = [
@@ -186,7 +196,7 @@ const makeVdom = (function(createElement) {
     }
 
     return result;
-  };
+  }; 
 
   function makeVdom(el) {
     const $html = $('<div>' + el.outerHTML + '</div>'); 
@@ -212,9 +222,7 @@ const Title = makeReactTemplate({
 }, todoData)
 
 const li = makeReactTemplate({ 
-    template: `<li class="item {{done}}">
-              <% if (editting === false) { %>
-               <span>{{name}}</span> 
+    template: `<li class="item {{done}}"><% if (editting === false) { %>{{name}}
               <% } else { %>
                 <input type="text" value="{{name}}" onfocus="this.select()" jd-model="edittingItem" >
               <% } %>  

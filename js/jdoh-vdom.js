@@ -184,13 +184,14 @@ class Template {
 
        // root return
        if (undefined === this.vApp) { 
-          this.vApp = makeVdom(this.$innerEl[0]); console.log('init', this.$innerEl[0])
-          this.$rootEL = mount(render(this.vApp), this.$el[0]);
+          this.vApp = makeVdom(this.$innerEl[0]); console.log('init', this.$innerEl[0], this.vApp)
+          this.$rootEl = mount(render(this.vApp), this.$el[0]); 
        } else {
-           this.vNewApp =  makeVdom(this.$innerEl[0]); console.log(this.$innerEl[0], this.vNewApp);
+           this.vNewApp =  makeVdom(this.$innerEl[0]); console.log('diff', this.$innerEl[0], this.vNewApp, 'this.$rootEl', this.$rootEl);
            const patch = diff(this.vApp, this.vNewApp);
            this.$rootEl = patch(this.$rootEl); 
            this.vApp = this.vNewApp;
+        // this.$rootEl = mount(render(this.vNewApp), this.$rootEl); 
        }
  
        return this;
