@@ -83,13 +83,20 @@ const diffChildren = (oldVChildren, newVChildren) => { console.log('diffChildren
 };
 
 const renderElem = ({ tagName, attrs, children }) => {
-  const $el = document.createElement(tagName);
+    let $el;
+    if (tagName === 'text') { 
+        $el = document.createTextNode(attrs.text);
+        delete(attrs.text);
+    } else {
+        $el = document.createElement(tagName);
+    }
+  
 
-  if (attrs.text) { 
-    const text = document.createTextNode(attrs.text);
-    // delete(attrs.text);
-    $el.appendChild(text);
-  }
+//   if (attrs.text) { 
+//     const text = document.createTextNode(attrs.text);
+//     // delete(attrs.text);
+//     $el.appendChild(text);
+//   }
 
   // set attributes
   for (const [k, v] of Object.entries(attrs)) {
@@ -183,13 +190,15 @@ const makeVdom = (function(createElement) {
            });
            const tagName = this.tagName.toLowerCase();
            const directText = $(this).clone().children().remove().end().text();
+           const children = [];
            if (textNodes.indexOf(tagName) > -1 && String(directText) !== '') { 
-               attrs['text'] = directText;
+               children.push(createElement.apply(createElement, 
+               ['text', { attrs: {text: directText}, children: []}]));
            }
            const el = [
             tagName, {
             attrs: attrs, 
-            children: _makeVdom($(this))
+            children: children.concat(_makeVdom($(this)))
            }];
            result.push(createElement.apply(createElement, el)); 
         });
