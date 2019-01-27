@@ -29,7 +29,7 @@ const diffAttrs = (oldAttrs, newAttrs) => {
 
   // set new attributes
   for (const [k, v] of Object.entries(newAttrs)) { 
-    patches.push($node => { console.log('$node.setAttribute(k, v);', typeof $node, k, v)
+    patches.push($node => { 
       if (typeof $node.setAttribute === 'function') $node.setAttribute(k, v);
       return $node;
     });
@@ -52,8 +52,9 @@ const diffAttrs = (oldAttrs, newAttrs) => {
   };
 };
 
-const diffChildren = (oldVChildren, newVChildren) => { console.log('diffChildren = (oldVChildren, newVChildren)', oldVChildren, newVChildren)
+const diffChildren = (oldVChildren, newVChildren) => { 
   const childPatches = [];
+
   oldVChildren.forEach((oldVChild, i) => {
     childPatches.push(diff(oldVChild, newVChildren[i]));
   });
@@ -65,7 +66,7 @@ const diffChildren = (oldVChildren, newVChildren) => { console.log('diffChildren
       return $node;
     });
   }
-// console.log('childPatches', childPatches);
+
   return $parent => { 
     for (const [patch, child] of zip(childPatches, $parent.childNodes)) {
         if (typeof patch === 'function') {
@@ -77,7 +78,7 @@ const diffChildren = (oldVChildren, newVChildren) => { console.log('diffChildren
     for (const patch of additionalPatches) {
       patch($parent);
     }
-    console.log('$parent', $parent);
+   
     return $parent;
   };
 };
@@ -85,8 +86,8 @@ const diffChildren = (oldVChildren, newVChildren) => { console.log('diffChildren
 const renderElem = ({ tagName, attrs, children }) => {
     let $el;
     if (tagName === 'text') { 
-        $el = document.createTextNode(attrs.text);
-        delete(attrs.text);
+        $el = document.createTextNode(attrs.content);
+        // delete(attrs.content);
     } else {
         $el = document.createElement(tagName);
     }
@@ -99,11 +100,13 @@ const renderElem = ({ tagName, attrs, children }) => {
 //   }
 
   // set attributes
-  for (const [k, v] of Object.entries(attrs)) {
+  if (tagName !== 'text') {
+    for (const [k, v] of Object.entries(attrs)) {
     if ('text' === k) continue; 
-    $el.setAttribute(k, v);
+       $el.setAttribute(k, v);
+    }
   }
-
+  
   // set children
   for (const child of children) {
     const $child = render(child);
@@ -121,8 +124,18 @@ const render = (vNode) => {
   return renderElem(vNode);
 }
 
-const diff = (vOldNode, vNewNode) => {
-  if (vNewNode === undefined) { console.log('if (vNewNode === undefined)');
+const diff = (vOldNode, vNewNode) => { 
+  
+if (vOldNode.tagName === 'text' && 'text' === vNewNode.tagName && vOldNode.attrs.content !== vNewNode.attrs.content) { 
+    return $node => {
+      const $newNode = render(vNewNode);
+      $node.replaceWith($newNode);
+      return $newNode;
+  };
+}
+
+  if (vNewNode === undefined) { 
+      
     return $node => {
       $node.remove();
       return undefined;
@@ -131,7 +144,7 @@ const diff = (vOldNode, vNewNode) => {
 
   if (typeof vOldNode === 'string' ||
     typeof vNewNode === 'string') {
-    if (vOldNode !== vNewNode) { console.log('if (vOldNode !== vNewNode)');
+    if (vOldNode !== vNewNode) { 
       return $node => {
         const $newNode = render(vNewNode);
         $node.replaceWith($newNode);
@@ -142,7 +155,7 @@ const diff = (vOldNode, vNewNode) => {
     }
   }
 
-  if (vOldNode.tagName !== vNewNode.tagName) { console.log('vOldNode.tagName !== vNewNode.tagName');
+  if (vOldNode.tagName !== vNewNode.tagName) { 
     return $node => {
       const $newNode = render(vNewNode);
       $node.replaceWith($newNode);
@@ -154,7 +167,6 @@ const diff = (vOldNode, vNewNode) => {
   const patchChildren = diffChildren(vOldNode.children, vNewNode.children);
   
   return $node => { 
-      console.log('$node', $node);
     patchAttrs($node);
     patchChildren($node); 
     return $node;
@@ -193,7 +205,7 @@ const makeVdom = (function(createElement) {
            const children = [];
            if (textNodes.indexOf(tagName) > -1 && String(directText) !== '') { 
                children.push(createElement.apply(createElement, 
-               ['text', { attrs: {text: directText}, children: []}]));
+               ['text', { attrs: {content: directText}, children: []}]));
            }
            const el = [
             tagName, {
@@ -298,7 +310,7 @@ makeReactTemplate({
                    {{ li.render(todoData.list[i]) }}
                <% } %>
                </ul>
-               <input type='text' value="{{todoData.newValue}}" jd-model="newItem" ><button @click="add">+</button>
+               <input type='text' value="{{todoData.newValue}}" onfocus="this.select()" jd-model="newItem" ><button @click="add">+</button>
                </div>`,
     methods:{
         add(e, el) { 
@@ -308,7 +320,7 @@ makeReactTemplate({
             const newItem = {name: name, id: uuid(), done: '', editting: false};
             res.push(newItem);
             console.log('add', newItem);
-            todoData.newValue = '';
+            todoData.set('newValue', '');
             todoData.set('list', res);
         }
     }           
