@@ -1,8 +1,4 @@
 
-var uuid = function() {
-    return Math.random().toString(36).substring(2) + (new Date()).getTime().toString(36);
-};
-
 // By default, Underscore uses ERB-style template delimiters, change the
   // following template settings to use alternative delimiters.
 var _ = _ || {};
@@ -141,6 +137,9 @@ var runDomEvent = function(el, e, key) {
 var runModelEvent = function(el, e, key) {
     if (ModelManager[key]) { 
         ModelManager[key]['ctx'][ModelManager[key]['key']] = el.value;
+        if (undefined !== todoData[ModelManager[key]['key']]) {
+            todoData[ModelManager[key]['key']] = el.value;
+        }
     }
 }
 
@@ -191,7 +190,6 @@ class Template {
            const patch = diff(this.vApp, this.vNewApp);
            this.$rootEl = patch(this.$rootEl); 
            this.vApp = this.vNewApp;
-        // this.$rootEl = mount(render(this.vNewApp), this.$rootEl); 
        }
  
        return this;
