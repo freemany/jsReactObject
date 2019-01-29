@@ -71,24 +71,24 @@ var _ = _ || {};
         source += "';\n" + evaluate + "\n__p+='";
       } else if (clickEvent) { 
         const token = "jd-" + String(Math.random()).substr(7);
-        const add = token + " data-event-key=" + token + " data-event onClick=runDomEvent(this,event,\"" + token + "\")";
+        const add = token + " data-event-key=" + token + " data-event onClick=jDoh.Event.runDomEvent(this,event,\"" + token + "\")";
         source +=  add;  
         events.push({id: token, event: 'click', func: clickEvent});
-        EventManager[token] = {event: 'click', func: clickEvent};
+        jDoh.EventManager[token] = {event: 'click', func: clickEvent};
       } else if (keyupEvent) { 
         const token = "jd-" + String(Math.random()).substr(7);
-        const add = token + " data-event-key=" + token + " data-event onkeyup=runDomEvent(this,event,\"" + token + "\")";
+        const add = token + " data-event-key=" + token + " data-event onkeyup=jDoh.Event.runDomEvent(this,event,\"" + token + "\")";
         source +=  add;  
         events.push({id: token, event: 'keyup', func: keyupEvent});
-        EventManager[token] = {event: 'keyup', func: keyupEvent};
+        jDoh.EventManager[token] = {event: 'keyup', func: keyupEvent};
       } else if (dom) { 
         const token = "jd-" + String(Math.random()).substr(7);
         source +=  token;  
-        DomManager[token] = dom;
+        jDoh.DomManager[token] = dom;
       } else if (model) { 
         const token = "jd-" + String(Math.random()).substr(7);
-        source +=  token + " oninput=runModelEvent(this,event,\"" + token + "\")";;  
-        ModelManager[token] = {key: model};
+        source +=  token + " oninput=jDoh.Event.runModelEvent(this,event,\"" + token + "\")";
+        jDoh.ModelManager[token] = {key: model};
       }
 
       // Adobe VMs need the match returned to produce the correct offset.
@@ -121,27 +121,35 @@ var _ = _ || {};
 
     return template;
   };
+  
+  jDoh.ModelManager = {};
+  jDoh.EventManager = {};
+  jDoh.Event = (function() {
+    // var ModelManager = {};
+    // var EventManager = {};
+    
+    var runDomEvent = function(el, e, key) { console.log(jDoh.EventManager[key])
+     if (jDoh.EventManager[key] && jDoh.EventManager[key]['func'] && 
+            jDoh.EventManager[key]['ctx'] && jDoh.EventManager[key]['target'] 
+                 && jDoh.EventManager[key]['ctx']['methods']) {
 
-var ModelManager = {};
-var EventManager = {};
-var DomManager = {};    
-var runDomEvent = function(el, e, key) { 
-     if (EventManager[key] && EventManager[key]['func'] && EventManager[key]['ctx'] && EventManager[key]['target'] && EventManager[key]['ctx']['methods']) {
-
-           return EventManager[key]['ctx']['methods'][EventManager[key]['func']].call(EventManager[key]['ctx'], 
+           return jDoh.EventManager[key]['ctx']['methods'][jDoh.EventManager[key]['func']].call(jDoh.EventManager[key]['ctx'], 
            e, el, 
-           EventManager[key]['data'] && typeof EventManager[key]['data'].get === 'function' ? EventManager[key]['data'].get() : EventManager[key]['data']);
+           jDoh.EventManager[key]['data'] && typeof jDoh.EventManager[key]['data'].get === 'function' ? jDoh.EventManager[key]['data'].get() : jDoh.EventManager[key]['data']);
      }
-};
+   };
 
-var runModelEvent = function(el, e, key) {
-    if (ModelManager[key]) { 
-        ModelManager[key]['ctx'][ModelManager[key]['key']] = el.value;
-        if (undefined !== todoData[ModelManager[key]['key']]) {
-            todoData[ModelManager[key]['key']] = el.value;
-        }
+   var runModelEvent = function(el, e, key) { 
+    if (jDoh.ModelManager[key]) { 
+        jDoh.ModelManager[key]['ctx'][jDoh.ModelManager[key]['key']] = el.value;
     }
-}
+   }
+
+   return {
+     runDomEvent: runDomEvent,
+     runModelEvent: runModelEvent,
+   }
+})();
 
 class Template {
     constructor(options) {
@@ -169,61 +177,62 @@ class Template {
        this.domEvents = event;
 
        if (!this.$el) {
-          this._pickupDom();
+        //   this._pickupDom();
           this._initEvents(data);
           this._initModel();
 
           return this.$innerEl[0].outerHTML;
        } 
        
-             
        this._initEvents();
-       this._pickupDom();
+    //    this._pickupDom();
        this._initModel();
 
        // root return
        if (undefined === this.vApp) { 
           this.vApp = makeVdom(this.$innerEl[0]); console.log('init', this.$innerEl[0], this.vApp)
-          this.$rootEl = mount(render(this.vApp), this.$el[0]); 
+          this.$rootEl = Vdom.place(this.vApp, this.$el[0]);
+        //   this.$rootEl = Vdom.mount(Vdom.render(this.vApp), this.$el[0]); 
        } else {
            this.vNewApp =  makeVdom(this.$innerEl[0]); console.log('diff', this.$innerEl[0], this.vNewApp, 'this.$rootEl', this.$rootEl);
-           const patch = diff(this.vApp, this.vNewApp);
-           this.$rootEl = patch(this.$rootEl); 
+        //    const patch = diff(this.vApp, this.vNewApp);
+        //    this.$rootEl = patch(this.$rootEl); 
+           this.$rootEl = Vdom.update(this.vApp, this.vNewApp, this.$rootEl);
            this.vApp = this.vNewApp;
        }
  
        return this;
     }
 
-    _pickupDom() {
-       for(const key in DomManager) {
-        const $found = $('<div>' + this.$innerEl[0].outerHTML + '</div>').find('[' + key + ']'); 
-        if ($found.length > 0) {
-              this[DomManager[key]] = function() {
-                  return $('body').find('[' + key + ']');
-              }; 
-        }
-       }
-    }
+    // _pickupDom() {
+    //    for(const key in DomManager) {
+    //     const $found = $('<div>' + this.$innerEl[0].outerHTML + '</div>').find('[' + key + ']'); 
+    //     if ($found.length > 0) {
+    //           this[DomManager[key]] = function() {
+    //               return $('body').find('[' + key + ']');
+    //           }; 
+    //     }
+    //    }
+    // }
 
     _initModel() {
-        for(const key in ModelManager) {
+        for(const key in jDoh.ModelManager) {
         const $found = $('<div>' + this.$innerEl[0].outerHTML + '</div>').find('[' + key + ']'); 
-        if ($found.length > 0 && undefined === ModelManager[key]['ctx']) { 
-              ModelManager[key]['ctx'] = this;
+        if ($found.length > 0 && undefined === jDoh.ModelManager[key]['ctx']) { 
+            jDoh.ModelManager[key]['ctx'] = this;
         }
        }
     }
 
-    _initEvents(data) { 
+    _initEvents(data) {  console.log(this.domEvents);
        const that = this;
        this.domEvents.forEach((evt) => {
            const $found = $('<div>' + that.$innerEl[0].outerHTML + '</div>').find('[' + evt.id + ']'); 
            if ($found.length > 0) { 
-               if (that.methods && that.methods[evt.func]) { 
-                   EventManager[evt.id]['target'] = that.$innerEl;
-                   EventManager[evt.id]['ctx'] = that;
-                   EventManager[evt.id]['data'] = data;
+               if (that.methods && that.methods[evt.func]) {  console.log(jDoh.EventManager[evt.id])
+                jDoh.EventManager[evt.id]['target'] = that.$innerEl;
+                jDoh.EventManager[evt.id]['ctx'] = that;
+                jDoh.EventManager[evt.id]['data'] = data;
                }
            }
        })

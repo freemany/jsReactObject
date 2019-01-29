@@ -5,7 +5,6 @@ var uuid = function() {
 
 // By default, Underscore uses ERB-style template delimiters, change the
   // following template settings to use alternative delimiters.
-var _ = _ || {};
   _.templateSettings = {
     evaluate: /<%([\s\S]+?)%>/g,
     interpolate: /{{([\s\S]+?)}}/g,
@@ -78,21 +77,21 @@ var _ = _ || {};
         const add = token + " data-event-key=" + token + " data-event onClick=runDomEvent(this,event,\"" + token + "\")";
         source +=  add;  
         events.push({id: token, event: 'click', func: clickEvent});
-        EventManager[token] = {event: 'click', func: clickEvent};
+        jDoh.Event.EventManager[token] = {event: 'click', func: clickEvent};
       } else if (keyupEvent) { 
         const token = "jd-" + String(Math.random()).substr(7);
         const add = token + " data-event-key=" + token + " data-event onkeyup=runDomEvent(this,event,\"" + token + "\")";
         source +=  add;  
         events.push({id: token, event: 'keyup', func: keyupEvent});
-        EventManager[token] = {event: 'keyup', func: keyupEvent};
+        jDoh.Event.EventManager[token] = {event: 'keyup', func: keyupEvent};
       } else if (dom) { 
         const token = "jd-" + String(Math.random()).substr(7);
         source +=  token;  
-        DomManager[token] = dom;
+        jDoh.Event.DomManager[token] = dom;
       } else if (model) { 
         const token = "jd-" + String(Math.random()).substr(7);
         source +=  token + " oninput=runModelEvent(this,event,\"" + token + "\")";;  
-        ModelManager[token] = {key: model};
+        jDoh.Event.ModelManager[token] = {key: model};
       }
 
       // Adobe VMs need the match returned to produce the correct offset.

@@ -1,4 +1,6 @@
-const createElement = (tagName, { attrs = {}, children = [] } = {}) => {
+const Vdom = (() => {
+
+  const createElement = (tagName, { attrs = {}, children = [] } = {}) => {
     return {
       tagName,
       attrs,
@@ -158,8 +160,28 @@ const createElement = (tagName, { attrs = {}, children = [] } = {}) => {
     $target.replaceWith($node);
     return $node;
   };
-  
-  const makeVdom = (function(createElement) {
+
+  const place = (vApp, el) => {
+       return mount(render(vApp), el);
+  };
+
+  const update = (vApp, vNewApp, $rootEl) => {
+      const patch = diff(vApp, vNewApp);
+      return patch($rootEl);
+  };         
+ 
+  return {
+    render: render,
+    createElement: createElement,
+    mount: mount,
+    diff: diff,
+    place: place,
+    update: update,
+  }
+})();
+
+
+const makeVdom = (function(createElement) {
     if (typeof createElement !== 'function') {
         throw new Error('makeVdom depends on createElement but createElement is not available');
     }
@@ -202,4 +224,4 @@ const createElement = (tagName, { attrs = {}, children = [] } = {}) => {
   
     return makeVdom;
   
-  })(createElement);
+  })(Vdom.createElement);
