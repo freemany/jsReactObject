@@ -74,21 +74,21 @@ var _ = _ || {};
         const add = token + " data-event-key=" + token + " data-event onClick=jDoh.Event.runDomEvent(this,event,\"" + token + "\")";
         source +=  add;  
         events.push({id: token, event: 'click', func: clickEvent});
-        jDoh.EventManager[token] = {event: 'click', func: clickEvent};
+        jDoh.Event.EventManager[token] = {event: 'click', func: clickEvent};
       } else if (keyupEvent) { 
         const token = "jd-" + String(Math.random()).substr(7);
         const add = token + " data-event-key=" + token + " data-event onkeyup=jDoh.Event.runDomEvent(this,event,\"" + token + "\")";
         source +=  add;  
         events.push({id: token, event: 'keyup', func: keyupEvent});
-        jDoh.EventManager[token] = {event: 'keyup', func: keyupEvent};
+        jDoh.Event.EventManager[token] = {event: 'keyup', func: keyupEvent};
       } else if (dom) { 
         const token = "jd-" + String(Math.random()).substr(7);
         source +=  token;  
-        jDoh.DomManager[token] = dom;
+        jDoh.Event.DomManager[token] = dom;
       } else if (model) { 
         const token = "jd-" + String(Math.random()).substr(7);
         source +=  token + " oninput=jDoh.Event.runModelEvent(this,event,\"" + token + "\")";
-        jDoh.ModelManager[token] = {key: model};
+        jDoh.Event.ModelManager[token] = {key: model};
       }
 
       // Adobe VMs need the match returned to produce the correct offset.
@@ -122,32 +122,33 @@ var _ = _ || {};
     return template;
   };
   
-  jDoh.ModelManager = {};
-  jDoh.EventManager = {};
+ 
   jDoh.Event = (function() {
-    // var ModelManager = {};
-    // var EventManager = {};
+    var ModelManager = {};
+    var EventManager = {};
     
-    var runDomEvent = function(el, e, key) { console.log(jDoh.EventManager[key])
-     if (jDoh.EventManager[key] && jDoh.EventManager[key]['func'] && 
-            jDoh.EventManager[key]['ctx'] && jDoh.EventManager[key]['target'] 
-                 && jDoh.EventManager[key]['ctx']['methods']) {
+    var runDomEvent = function(el, e, key) { 
+     if (EventManager[key] && EventManager[key]['func'] && 
+          EventManager[key]['ctx'] && EventManager[key]['target'] 
+                 && EventManager[key]['ctx']['methods']) {
 
-           return jDoh.EventManager[key]['ctx']['methods'][jDoh.EventManager[key]['func']].call(jDoh.EventManager[key]['ctx'], 
+           return EventManager[key]['ctx']['methods'][EventManager[key]['func']].call(EventManager[key]['ctx'], 
            e, el, 
-           jDoh.EventManager[key]['data'] && typeof jDoh.EventManager[key]['data'].get === 'function' ? jDoh.EventManager[key]['data'].get() : jDoh.EventManager[key]['data']);
+           EventManager[key]['data'] && typeof EventManager[key]['data'].get === 'function' ? EventManager[key]['data'].get() : EventManager[key]['data']);
      }
    };
 
    var runModelEvent = function(el, e, key) { 
-    if (jDoh.ModelManager[key]) { 
-        jDoh.ModelManager[key]['ctx'][jDoh.ModelManager[key]['key']] = el.value;
+    if (ModelManager[key]) { 
+        ModelManager[key]['ctx'][ModelManager[key]['key']] = el.value;
     }
    }
 
    return {
      runDomEvent: runDomEvent,
      runModelEvent: runModelEvent,
+     ModelManager: ModelManager,
+     EventManager: EventManager,
    }
 })();
 
@@ -216,23 +217,23 @@ class Template {
     // }
 
     _initModel() {
-        for(const key in jDoh.ModelManager) {
+        for(const key in jDoh.Event.ModelManager) {
         const $found = $('<div>' + this.$innerEl[0].outerHTML + '</div>').find('[' + key + ']'); 
-        if ($found.length > 0 && undefined === jDoh.ModelManager[key]['ctx']) { 
-            jDoh.ModelManager[key]['ctx'] = this;
+        if ($found.length > 0 && undefined === jDoh.Event.ModelManager[key]['ctx']) { 
+            jDoh.Event.ModelManager[key]['ctx'] = this;
         }
        }
     }
 
-    _initEvents(data) {  console.log(this.domEvents);
+    _initEvents(data) {  
        const that = this;
        this.domEvents.forEach((evt) => {
            const $found = $('<div>' + that.$innerEl[0].outerHTML + '</div>').find('[' + evt.id + ']'); 
            if ($found.length > 0) { 
-               if (that.methods && that.methods[evt.func]) {  console.log(jDoh.EventManager[evt.id])
-                jDoh.EventManager[evt.id]['target'] = that.$innerEl;
-                jDoh.EventManager[evt.id]['ctx'] = that;
-                jDoh.EventManager[evt.id]['data'] = data;
+               if (that.methods && that.methods[evt.func]) {  
+                jDoh.Event.EventManager[evt.id]['target'] = that.$innerEl;
+                jDoh.Event.EventManager[evt.id]['ctx'] = that;
+                jDoh.Event.EventManager[evt.id]['data'] = data;
                }
            }
        })

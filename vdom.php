@@ -16,10 +16,6 @@
 <body>
 <div id="app"></div>
 <script>
-// let vApp = makeVdom(html); 
-// const $app = render(vApp);
-
-// let $rootEl = mount($app, document.getElementById('app'));
 
 /** Todo app here */
 const todoData = {title: 'My todo app', list: [{id: uuid(), name: 'wash', done: '', editting: false}, {id: uuid(), name: 'homework', done: '', editting: false}], newValue: '', msg: 'my message'};
