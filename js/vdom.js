@@ -24,8 +24,17 @@ const Vdom = (() => {
     for (const [k, v] of Object.entries(newAttrs)) { 
       patches.push($node => { 
         if (typeof $node.setAttribute === 'function') {
-          if ('ref' === k) {
-            _tplInstance[v] = $node;
+          if ('ref' === k) { 
+            let token = null;
+            Object.entries(newAttrs).forEach((i) => {
+             if (i[0] === 'data-ref-token') {
+                if (jDoh.Event.RefManager[i[1]]) {
+                  token = i[1];
+                  jDoh.Event.RefManager[i[1]][v] = $node;
+                }
+             }
+            });
+            if (null === token) _tplInstance[v] = $node;
           } else {
             $node.setAttribute(k, v);
           }
@@ -91,11 +100,20 @@ const Vdom = (() => {
       }
   
     // set attributes
-    if (tagName !== 'text') {
+    if (tagName !== 'text') { 
       for (const [k, v] of Object.entries(attrs)) {
       if ('text' === k) continue; 
          if ('ref' === k) { 
-          _tplInstance[v] = $el; 
+          let token = null;
+          Object.entries(attrs).forEach((i) => {
+             if (i[0] === 'data-ref-token') { 
+                if (jDoh.Event.RefManager[i[1]]) {
+                  token = i[1];
+                  jDoh.Event.RefManager[i[1]][v] = $el;
+                }
+             }
+          });
+          if (token === null) _tplInstance[v] = $el; 
          } else {
           $el.setAttribute(k, v);
          }

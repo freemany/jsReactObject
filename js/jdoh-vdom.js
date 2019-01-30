@@ -10,6 +10,7 @@ var _ = _ || {};
     keyupEvent: /@keyup="([\s\S]+?)"/g,
     dom: /#([\s\S]+?)#/g,
     model: /jd-model="([\s\S]+?)"/g,
+    ref: /ref="([\s\S]+?)"/g,
   };
 
   // When customizing `templateSettings`, if you don't want to define an
@@ -53,13 +54,14 @@ var _ = _ || {};
       (settings.clickEvent || noMatch).source,
       (settings.keyupEvent || noMatch).source,
       (settings.dom || noMatch).source,
-      (settings.model || noMatch).source
+      (settings.model || noMatch).source,
+      (settings.ref || noMatch).source
     ].join('|') + '|$', 'g');
 
     // Compile the template source, escaping string literals appropriately.
     var index = 0;
     var source = "__p+='";
-    text.replace(matcher, function(match, escape, interpolate, evaluate, clickEvent, keyupEvent, dom, model, offset) {
+    text.replace(matcher, function(match, escape, interpolate, evaluate, clickEvent, keyupEvent, dom, model, ref, offset) {
       source += text.slice(index, offset).replace(escapeRegExp, escapeChar);
       index = offset + match.length;
 
@@ -89,6 +91,9 @@ var _ = _ || {};
         const token = "jd-" + String(Math.random()).substr(7);
         source +=  token + " oninput=jDoh.Event.runModelEvent(this,event,\"" + token + "\")";
         jDoh.Event.ModelManager[token] = {key: model};
+      } else if (ref) { 
+        const token = "jd-" + String(Math.random()).substr(7); 
+        source +=  " data-ref data-ref-token=" + token + " ref=" + ref + " ";
       }
 
       // Adobe VMs need the match returned to produce the correct offset.
@@ -128,6 +133,7 @@ var _ = _ || {};
     var ModelManager = {};
     var EventManager = {};
     var DomManager = {};
+    var RefManager = {};
     
     var runDomEvent = function(el, e, key) { 
      if (EventManager[key] && EventManager[key]['func'] && 
@@ -155,6 +161,7 @@ var _ = _ || {};
      ModelManager: ModelManager,
      EventManager: EventManager,
      DomManager: DomManager,
+     RefManager: RefManager,
    }
 })();
 
@@ -187,6 +194,7 @@ class Template {
           this._pickupDom();
           this._initEvents(data);
           this._initModel();
+          this._getRef();
 
           return this.$innerEl[0].outerHTML;
        } 
@@ -210,6 +218,16 @@ class Template {
  
        return this;
     }
+
+    _getRef() {
+         const $found = $('<div>' + this.$innerEl[0].outerHTML + '</div>').find('[data-ref]'); 
+         if ($found.length > 0) { 
+             const that = this;
+            $found.each(function() {
+                jDoh.Event.RefManager[$(this).data('ref-token')] = that;
+            })
+         }
+     }
 
     _pickupDom() {
        for(const key in jDoh.Event.DomManager) {

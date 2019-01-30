@@ -5,6 +5,12 @@
 .done {
     text-decoration: line-through;
 }
+.green {
+    background-color: green;
+}
+.light-blue {
+    background-color: lightblue;
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
 <script>
@@ -25,7 +31,7 @@ const Title = makeReactTemplate({
 }, todoData)
 
 const li = makeReactTemplate({ 
-    template: `<li class="item {{done}}">
+    template: `<li class="item {{done}}" ref="itemLi">
               <% if (editting === false) { %>
                 {{name}}
               <% } else { %>
@@ -33,10 +39,22 @@ const li = makeReactTemplate({
               <% } %>  
               <button @click="delete">-</button>
               <button @click="makeDone">{{done === "" ? "done" : "undone"}}</button>
-              <button @click="startEdit">{{editting === false ? "edit" : "save"}}</button></li>`,
+              <button @click="startEdit">{{editting === false ? "edit" : "save"}}</button>
+              <button ref="button" @click="changeBackground">change background</button>
+              </li>`,
     dynamic: true,
     methods: {
-        startEdit(e, el, item) {
+        changeBackground() { 
+            if ($(this.button).hasClass('light-blue')) {
+                $(this.button).removeClass('light-blue');
+                $(this.itemLi).removeClass('green');
+            } else {
+                $(this.button).addClass('light-blue');
+                $(this.itemLi).addClass('green');
+            }
+        },
+        startEdit(e, el, item) { 
+            $(this.itemLi).addClass('light-blue');
             e.preventDefault();
 
             const list = todoData.list.get();
