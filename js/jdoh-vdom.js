@@ -97,7 +97,8 @@ var _ = _ || {};
     source += "';\n";
 
     // If a variable is not specified, place data values in local scope.
-    if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
+    // if (!settings.variable) source = 'with(obj||{}){\n' + source + '}\n';
+    source = 'with(obj||{}){\n' + source + '}\n';
 
     source = "var __t,__p='',__j=Array.prototype.join," +
       "print=function(){__p+=__j.call(arguments,'');};\n" +
@@ -141,6 +142,9 @@ var _ = _ || {};
    var runModelEvent = function(el, e, key) { 
     if (ModelManager[key]) { 
         ModelManager[key]['ctx'][ModelManager[key]['key']] = el.value;
+        if (undefined !== ModelManager[key]['ctx']['data']) {
+            ModelManager[key]['ctx']['data'][ModelManager[key]['key']] = el.value;
+        }
     }
    }
 
@@ -240,22 +244,43 @@ class Template {
     }
 }
 
-var makeReactTemplate = function(opts, data) { 
-   const t = new Template({
-       $el: opts.$el,
-       template: opts.template,
-       data: data,
-       methods: opts.methods,
-       dynamic: opts.dynamic,
-   });
+var makeReactTemplate = function(options, data) { 
 
-   if (data && opts.$el) {
-    makeReactObject(data, [function() {
-       t.render();
-    }]);
+   const opts = options;
+
+   const _init = () => {
+    const t = new Template({
+        $el: opts.$el,
+        template: opts.template,
+        data: data,
+        methods: opts.methods,
+        dynamic: opts.dynamic,
+       });
+
+      if (data && opts.$el) {
+        makeReactObject(data, [function() {
+        t.render();
+        }]);
+      }  
+     return t;  
    }
-  
-   return t;
+
+   const mount = () => {
+      const t = _init();
+
+      t.render();
+   };
+
+   const render = (data) => {
+      const t = _init(); 
+      
+      return t.render.call(t, data);
+   };
+
+   return {
+       mount: mount,
+       render: render,
+   }
 };
 
 var makeReactObject = (function() {

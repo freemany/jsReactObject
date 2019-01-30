@@ -94,8 +94,9 @@ makeReactTemplate({
                </ul>
                <input type='text' onfocus="this.select()" jd-model="newItem" ><button @click="add">+</button>
                <br/><br/>
-               <input type='text' value="{{todoData.msg}}" onfocus="this.select()" jd-model="msg" >
-               <p>{{todoData.msg}}</p>
+               <input type='text' value="{{msg}}" onfocus="this.select()" jd-model="msg" >
+               <h1>Message: {{msg}}</h1>
+               <p>{{msg}}</p>
                </div>`,
     methods:{
         add(e, el) { 
@@ -104,12 +105,13 @@ makeReactTemplate({
             let res = typeof todoData.list.get === 'function' ? todoData.list.get() : [];
             const newItem = {name: name, id: uuid(), done: '', editting: false};
             res.push(newItem);
+            $(el).val('');
             console.log('add', newItem);
             todoData.set('newValue', '');
             todoData.set('list', res);
         }
     }           
-}, todoData).render();
+}, todoData).mount();
 </script>
 </body>
 </html>
