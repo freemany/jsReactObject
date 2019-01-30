@@ -1,4 +1,5 @@
 const Vdom = (() => {
+  let _tplInstance;
 
   const createElement = (tagName, { attrs = {}, children = [] } = {}) => {
     return {
@@ -22,7 +23,13 @@ const Vdom = (() => {
     // set new attributes
     for (const [k, v] of Object.entries(newAttrs)) { 
       patches.push($node => { 
-        if (typeof $node.setAttribute === 'function') $node.setAttribute(k, v);
+        if (typeof $node.setAttribute === 'function') {
+          if ('ref' === k) {
+            _tplInstance[v] = $node;
+          } else {
+            $node.setAttribute(k, v);
+          }
+        }
         return $node;
       });
     }
@@ -87,7 +94,11 @@ const Vdom = (() => {
     if (tagName !== 'text') {
       for (const [k, v] of Object.entries(attrs)) {
       if ('text' === k) continue; 
-         $el.setAttribute(k, v);
+         if ('ref' === k) { 
+          _tplInstance[v] = $el; 
+         } else {
+          $el.setAttribute(k, v);
+         }
       }
     }
     
@@ -161,11 +172,13 @@ const Vdom = (() => {
     return $node;
   };
 
-  const place = (vApp, el) => {
+  const place = (vApp, el, tpl) => {
+       _tplInstance = tpl;
        return mount(render(vApp), el);
   };
 
-  const update = (vApp, vNewApp, $rootEl) => {
+  const update = (vApp, vNewApp, $rootEl, tpl) => {
+      _tplInstance = tpl;
       const patch = diff(vApp, vNewApp);
       return patch($rootEl);
   };         

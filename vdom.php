@@ -25,7 +25,9 @@ const Title = makeReactTemplate({
 }, todoData)
 
 const li = makeReactTemplate({ 
-    template: `<li class="item {{done}}"><% if (editting === false) { %>{{name}}
+    template: `<li class="item {{done}}">
+              <% if (editting === false) { %>
+                {{name}}
               <% } else { %>
                 <input type="text" value="{{name}}" onfocus="this.select()" jd-model="edittingItem" >
               <% } %>  
@@ -92,7 +94,7 @@ makeReactTemplate({
                    {{ li.render(todoData.list[i]) }}
                <% } %>
                </ul>
-               <input type='text' onfocus="this.select()" jd-model="newItem" ><button @click="add">+</button>
+               <input type='text' onfocus="this.select()" jd-model="newItem" ref="input"><button @click="add">+</button>
                <br/><br/>
                <input type='text' value="{{msg}}" onfocus="this.select()" jd-model="msg" >
                <h1>Message: {{msg}}</h1>
@@ -105,9 +107,8 @@ makeReactTemplate({
             let res = typeof todoData.list.get === 'function' ? todoData.list.get() : [];
             const newItem = {name: name, id: uuid(), done: '', editting: false};
             res.push(newItem);
-            $(el).val('');
             console.log('add', newItem);
-            todoData.set('newValue', '');
+            this.input.value = '';
             todoData.set('list', res);
         }
     }           

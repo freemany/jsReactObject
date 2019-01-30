@@ -3,7 +3,9 @@
 <head>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
 <script>
-<?php echo file_get_contents(__DIR__ . '/js/jdoh.js'); ?>
+<?php echo file_get_contents(__DIR__ . '/js/utils.js'); ?>
+<?php echo file_get_contents(__DIR__ . '/js/vdom.js'); ?>
+<?php echo file_get_contents(__DIR__ . '/js/jdoh-vdom.js'); ?>
 </script>
 </head>
 <body>
@@ -65,7 +67,7 @@ myPromise.all = (arrP) => {
        for(let i=0; i < pTotal; i++) { 
           arrP[i].then((res) => {
              arrRes[i] = res; 
-             if (Object .keys(arrRes).length === pTotal) {
+             if (Object.keys(arrRes).length === pTotal) {
                    p.result = arrRes;
              }
           });
@@ -77,6 +79,53 @@ myPromise.all = (arrP) => {
        then: then
    }
 };
+
+myPromise.race = (arrP) => {
+    const maxTimeout = 10000;
+    let pTotal = arrP.length;
+
+    if (!Array.isArray(arrP) || arrP.length === 0) {
+        throw new Error('Invalid array of promise');
+    }
+    arrP.forEach((p) => {
+        if (typeof p.then !== 'function') {
+            throw new Error('Invalid array of promise');
+        }
+    })
+
+    const then = function(cb) {
+        const p = {
+           result: undefined,
+        };
+
+        let isTimeout = false;
+
+        let res;
+
+         setTimeout(() => {
+            isTimeout = true;
+            p.result = {result: res, error: 'timeout'};
+         }, maxTimeout);
+    
+
+        makeReactObject(p, [function() {
+            cb.call(cb, this.result);
+        }]);
+
+       for(let i=0; i < pTotal; i++) { 
+          arrP[i].then((res) => {
+             p.result = res;
+             p.setterCallback = () => {}; // no following callbacks
+          });
+       } 
+       callback = cb;
+   }
+
+   return {
+       then: then
+   }
+};
+
 
 myPromise.resolve = function(p) {
     const resolver = function(cb) {
@@ -113,6 +162,15 @@ myPromise.all([
     service('4tia', 2000)])
 .then((arrRes) => {
     console.log(arrRes);
+});
+
+myPromise.race([
+    service('1tintin', 2000), 
+    service('2tia', 1000),
+    service('3tia', 4000),
+    service('4tia', 500)])
+.then((res) => {
+    console.log(res, 'assert:', res === '4tia');
 });
 
 function promise() {

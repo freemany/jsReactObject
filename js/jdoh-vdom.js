@@ -127,6 +127,7 @@ var _ = _ || {};
   jDoh.Event = (function() {
     var ModelManager = {};
     var EventManager = {};
+    var DomManager = {};
     
     var runDomEvent = function(el, e, key) { 
      if (EventManager[key] && EventManager[key]['func'] && 
@@ -153,6 +154,7 @@ var _ = _ || {};
      runModelEvent: runModelEvent,
      ModelManager: ModelManager,
      EventManager: EventManager,
+     DomManager: DomManager,
    }
 })();
 
@@ -182,7 +184,7 @@ class Template {
        this.domEvents = event;
 
        if (!this.$el) {
-        //   this._pickupDom();
+          this._pickupDom();
           this._initEvents(data);
           this._initModel();
 
@@ -190,35 +192,35 @@ class Template {
        } 
        
        this._initEvents();
-    //    this._pickupDom();
+       this._pickupDom();
        this._initModel();
 
        // root return
        if (undefined === this.vApp) { 
           this.vApp = makeVdom(this.$innerEl[0]); console.log('init', this.$innerEl[0], this.vApp)
-          this.$rootEl = Vdom.place(this.vApp, this.$el[0]);
+          this.$rootEl = Vdom.place(this.vApp, this.$el[0], this);
         //   this.$rootEl = Vdom.mount(Vdom.render(this.vApp), this.$el[0]); 
        } else {
            this.vNewApp =  makeVdom(this.$innerEl[0]); console.log('diff', this.$innerEl[0], this.vNewApp, 'this.$rootEl', this.$rootEl);
         //    const patch = diff(this.vApp, this.vNewApp);
         //    this.$rootEl = patch(this.$rootEl); 
-           this.$rootEl = Vdom.update(this.vApp, this.vNewApp, this.$rootEl);
+           this.$rootEl = Vdom.update(this.vApp, this.vNewApp, this.$rootEl, this);
            this.vApp = this.vNewApp;
        }
  
        return this;
     }
 
-    // _pickupDom() {
-    //    for(const key in DomManager) {
-    //     const $found = $('<div>' + this.$innerEl[0].outerHTML + '</div>').find('[' + key + ']'); 
-    //     if ($found.length > 0) {
-    //           this[DomManager[key]] = function() {
-    //               return $('body').find('[' + key + ']');
-    //           }; 
-    //     }
-    //    }
-    // }
+    _pickupDom() {
+       for(const key in jDoh.Event.DomManager) {
+        const $found = $('<div>' + this.$innerEl[0].outerHTML + '</div>').find('[' + key + ']'); 
+        if ($found.length > 0) {
+              this[jDoh.Event.DomManager[key]] = function() {
+                  return $('body').find('[' + key + ']');
+              }; 
+        }
+       }
+    }
 
     _initModel() {
         for(const key in jDoh.Event.ModelManager) {
