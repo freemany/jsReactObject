@@ -34,14 +34,16 @@ service('freeman', 2000).then((res) => {
     console.log(res);
 }).then((res) => {
     console.log('second time', res);
+}).then((res) => {
+    console.log('3rd time', res);
 })
-// service('tintin', 0).then((res) => {
-//     console.log(res);
-// })
-// service('tia', 1000).then((res) => {
-//     console.log(res);
-// })
-// service('jon', 1000)
+service('tintin', 0).then((res) => {
+    console.log(res);
+})
+service('tia', 1000).then((res) => {
+    console.log(res);
+})
+service('jon', 1000)
 </script>
 </head>
 <body>
