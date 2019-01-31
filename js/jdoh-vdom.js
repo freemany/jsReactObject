@@ -150,7 +150,7 @@ var _ = _ || {};
     if (ModelManager[key]) { 
         ModelManager[key]['ctx'][ModelManager[key]['key']] = el.value;
         if (undefined !== ModelManager[key]['ctx']['data']) {
-            ModelManager[key]['ctx']['data'][ModelManager[key]['key']] = el.value;
+            ModelManager[key]['ctx']['data'].set(ModelManager[key]['key'], el.value);
         }
     }
    }
@@ -278,9 +278,9 @@ var makeReactTemplate = function(options, data) {
        });
 
       if (data && opts.$el) {
-        makeReactObject(data, [function() {
+        makeObjectReact(data, function() {
         t.render();
-        }]);
+        });
       }  
      return t;  
    }
@@ -381,3 +381,55 @@ var makeReactObject = (function() {
 
    return makeReactObject;
 })();
+
+// make object react
+const makeObjectReact = (() => {
+
+    const removeGetSet = (d) => {
+    const data = JSON.parse(JSON.stringify(d)); // make a copy
+    delete(data.set);
+    delete(data.get);
+ 
+    for(const k in data) {
+         if (typeof data[k] === 'object' && data[k].length !== undefined) {
+             data[k] = removeGetSet(data[k]);
+         }
+     }
+    return data;
+ }
+ 
+ const makeReactObject = (data, cb) => {
+     data.get = (k) => {
+         if (data[k]) {
+             return removeGetSet(data[k]);
+         }
+     };
+ 
+     data.set = (k, v, localCb) => {
+         let oldValue;
+         if (data[k]) {
+             if (data[k] === v) return;
+             oldValue = data[k];
+         }
+         if (typeof v === 'object' && v.length !== undefined) {
+             data[k] = makeReactObject(v, cb);  
+         } else {
+             data[k] = v;
+         }
+         if (typeof localCb === 'function') {
+             data.set = localCb;
+         }
+         cb.call(data, oldValue, v, data);
+     };
+ 
+     for(const k in data) {
+         if (typeof data[k] === 'object' && data[k].length !== undefined) {
+             data[k] = makeReactObject(data[k], cb);
+         }
+     }
+ 
+     return data;
+   };
+ 
+   return makeReactObject;
+ })();

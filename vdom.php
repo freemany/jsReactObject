@@ -57,14 +57,16 @@ const li = makeReactTemplate({
             $(this.itemLi).addClass('light-blue');
             e.preventDefault();
 
-            const list = todoData.list.get();
+            const list = todoData.get('list'); 
             for(let i=0; i < list.length; i++) {
                 if (list[i].id === item.id) {
                     if (true === list[i].editting) {
                         list[i].editting = false;
                         // const value = $(el).prev().prev().prev().val();
-                        const value = this.edittingItem; 
-                        list[i].name = value;
+                        if (undefined !== this.edittingItem) {
+                            const value = this.edittingItem; 
+                            list[i].name = value;
+                        }
                     } else {
                         list[i].editting = true;
                     }
@@ -76,7 +78,7 @@ const li = makeReactTemplate({
             e.preventDefault();
 
             console.log('todo done', item)
-            const list = todoData.list.get();
+            const list = todoData.get('list'); 
             let res = [];
             for(let i=0; i < list.length; i++) {
                 let done = list[i].done;
@@ -90,7 +92,7 @@ const li = makeReactTemplate({
         delete(e, el, item) {
             e.preventDefault();
 
-            const list = todoData.list.get();
+            const list = todoData.get('list');
             console.log('delete', item, list)
             let res = [];
             for(let i=0; i < list.length; i++) {
@@ -122,7 +124,7 @@ makeReactTemplate({
         add(e, el) { 
             e.preventDefault();
             const name = this.newItem;
-            let res = typeof todoData.list.get === 'function' ? todoData.list.get() : [];
+            let res = typeof todoData.list.get === 'function' ? todoData.get('list') : [];
             const newItem = {name: name, id: uuid(), done: '', editting: false};
             res.push(newItem);
             console.log('add', newItem);
