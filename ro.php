@@ -54,7 +54,7 @@ const makeReactObject = (data, cb) => {
 })();
 
 
-const data = {title: 'freeman', foo: { bar: 'bar', coo: {last: 'last'}}};
+const data = {title: 'freeman', foo: { bar: 'bar', coo: {last: 'last'}}, list: [{name: 'freeman'}, {name: 'tintin'}]};
 const d = makeObjectReact(data,function(o, n, data) { console.log(o, n, data, this);});
 
 console.log(d.get('title')); d.set('title', 'hello')

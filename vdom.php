@@ -57,7 +57,7 @@ const li = makeReactTemplate({
             $(this.itemLi).addClass('light-blue');
             e.preventDefault();
 
-            const list = todoData.get('list'); 
+            const list = todoData.get('list'); console.log(list, item)
             for(let i=0; i < list.length; i++) {
                 if (list[i].id === item.id) {
                     if (true === list[i].editting) {

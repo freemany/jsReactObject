@@ -142,7 +142,7 @@ var _ = _ || {};
 
            return EventManager[key]['ctx']['methods'][EventManager[key]['func']].call(EventManager[key]['ctx'], 
            e, el, 
-           EventManager[key]['data'] && typeof EventManager[key]['data'].get === 'function' ? EventManager[key]['data'].get() : EventManager[key]['data']);
+           EventManager[key]['data'] && typeof EventManager[key].get === 'function' ? EventManager[key].get('data') : EventManager[key]['data']);
      }
    };
 
@@ -391,7 +391,7 @@ const makeObjectReact = (() => {
     delete(data.get);
  
     for(const k in data) {
-         if (typeof data[k] === 'object' && data[k].length !== undefined) {
+         if (typeof data[k] === 'object') {
              data[k] = removeGetSet(data[k]);
          }
      }
@@ -411,7 +411,7 @@ const makeObjectReact = (() => {
              if (data[k] === v) return;
              oldValue = data[k];
          }
-         if (typeof v === 'object' && v.length !== undefined) {
+         if (typeof v === 'object') {
              data[k] = makeReactObject(v, cb);  
          } else {
              data[k] = v;
@@ -423,7 +423,7 @@ const makeObjectReact = (() => {
      };
  
      for(const k in data) {
-         if (typeof data[k] === 'object' && data[k].length !== undefined) {
+         if (typeof data[k] === 'object') {
              data[k] = makeReactObject(data[k], cb);
          }
      }
