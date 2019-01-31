@@ -62,9 +62,11 @@ const li = makeReactTemplate({
                 if (list[i].id === item.id) {
                     if (true === list[i].editting) {
                         list[i].editting = false;
-                        // const value = $(el).prev().prev().prev().val();
-                        const value = this.edittingItem; 
-                        list[i].name = value;
+                        // list[i].name = this.input.value; // in template li, you need ref="input"
+                        if (undefined !== this.edittingItem) {
+                            const value = this.edittingItem; 
+                            list[i].name = value;
+                        }
                     } else {
                         list[i].editting = true;
                     }
