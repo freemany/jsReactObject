@@ -1,3 +1,5 @@
+<?php $data=['name'=> ['cool' => 'freeman']]; 
+var_dump(isset($data['name']['ffff'])); ?>
 <!doctype html>
 <html>
 <head>
