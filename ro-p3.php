@@ -112,6 +112,31 @@ P.resolve = (p) => {
     }
 };
 
+const CallbackManager = (() => {
+
+    const _cb = {};
+    const _$el = {}; 
+    const render = (key, value, domBuilder, cb) => {
+       _cb[key] = cb;
+       
+       _$el[key] = domBuilder();
+       cb.call(cb, null, value, _$el[key]);
+
+       return _$el[key];
+    };
+
+    const attach = (key) => { 
+       return function(o, n) {
+           return _cb[key].call(_cb[key], o, n, _$el[key]);
+       }    
+    };
+
+    return {
+       render: render,
+       attach: attach,
+    }
+})();
+
 const makeObjectReact = (() => {
 
    const removeGetSet = (d) => {
@@ -168,7 +193,7 @@ const makeReactObject = (data, cb) => {
 </script>
 </head>
 <body>
-<h1></h1><h2></h2><h3></h3>
+<div id="app"></div>
 <input id="title" type="text">
 <input id="bar" type="text">
 <input id="last" type="text">
@@ -177,55 +202,64 @@ const makeReactObject = (data, cb) => {
 <script>
 const data = {title: 'freeman', foo: { bar: 'bar', coo: {last: 'last'}}, list: [{name: 'freeman'}, {name: 'tintin'}]};
 
-makeObjectReact(data, function(o, n, data) { 
-    render();
+makeObjectReact(data);
+
+// building vdom
+const $title = CallbackManager.render('data.title', data.title, 
+function() {
+    return $('<h1>');
+},
+function(o, n, $el) {
+     $el.text(n);
+});
+const $bar = CallbackManager.render('data.foo.bar', data.foo.bar, 
+function() {
+    return $('<h2>');
+},
+function(o, n, $el) {
+     $el.text(n);
+});
+const $last = CallbackManager.render('data.foo.coo.last', data.foo.coo.last, 
+function() {
+    return $('<h3>');
+},
+function(o, n, $el) {
+     $el.text(n);
+});
+const $ul = CallbackManager.render('data.list', data.list, 
+function() { 
+       return $('ul');
+},
+function(o, n, $el) {
+        $el.empty();
+        data.get('list').forEach((x, i) => { 
+            const $li = $('<li>');
+            $li.text(x.name)
+               .click(function() {
+                const list = data.get('list'); 
+                list.splice(i, 1);
+                data.set('list', list, CallbackManager.attach('data.list'));
+           })
+           $el.append($li);
+       })
 });
 
-function titleCallback(o, n) {
-    $('h1').text(n);
-};
-function barCallback(o, n) {
-    $('h2').text(n);
-};
-function lastCallback(o, n) {
-    $('h3').text(n);
-};
-function listCallback(o, n) {
-    const $ul = $('ul').html(''); 
-    data.get('list').forEach((x, i) => { 
-       const $li = $('<li>');
-       $li.text(x.name).click(function() {
-        const list = data.get('list'); 
-        list.splice(i, 1);
-        data.set('list', list, listCallback);
-       })
-       $ul.append($li);
-    })
-};
-
-function render() { console.log('rendering...')
-    titleCallback(null, data.title);
-    barCallback(null, data.foo.bar);
-    lastCallback(null, data.foo.coo.last);
-    listCallback(null, data.get('list'));
-};
-render();
-data.foo.setterCallback = () => {};
+$('#app').append($title).append($bar).append($last).append($ul);
 
 $('#title').keyup(function() {
-     data.set('title', $(this).val(), titleCallback);
+     data.set('title', $(this).val(), CallbackManager.attach('data.title'));
 });
 $('#bar').keyup(function() {
-     data.foo.set('bar', $(this).val(), barCallback);
+    data.foo.set('bar', $(this).val(), CallbackManager.attach('data.foo.bar'));
 });
 $('#last').keyup(function() {
-     data.foo.coo.set('last', $(this).val(), lastCallback);
+    data.foo.coo.set('last', $(this).val(), CallbackManager.attach('data.foo.coo.last'));
 });
 $('button').click(function() {
      const name = $('#add').val();
      const list = data.get('list');  
      list.push({name}); 
-     data.set('list', list, listCallback);
+     data.set('list', list, CallbackManager.attach('data.list'));
 });     
 </script>
 </body>
