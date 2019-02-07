@@ -114,12 +114,55 @@ const renderDom = (function() {
           // attach dom events
           const attr = this.attributes; 
           const attrs = Object.keys(attr).map((index) => {return {name: attr[index].name, val: attr[index].value}});
-    console.log(attrs)
-          attrs.forEach((a) => {
+   
+          attrs.forEach((a, i) => { 
+            let matches;
             if ('@keyup' === a.name) {
                  $that.keyup(function(e) {
                      instance.methods[a.val].call(instance, e, $(this))
                  });
+                 $(this).removeAttr(a.name);
+            }
+            if ('@click' === a.name) { 
+                 $that.click(function(e) {
+                     instance.methods[a.val].call(instance, e, $(this))
+                 });
+                 $(this).removeAttr(a.name);
+            }
+            if ('value' === a.name) {
+                matches = a.val.match(p);
+                if (null !== matches) {
+                     $(this).val(eval(matches[1]));
+                     $(this).removeAttr(a.name);
+                }
+            }
+
+            if ('placeholder' === a.name) {
+                matches = a.val.match(p);
+                if (null !== matches) {
+                     $(this).removeAttr(a.name);
+                     $(this).attr(a.name, eval(matches[1]));
+                }
+            }
+
+            if ('@for' === a.name) { 
+                const parts = a.val.split('in');
+                const list = eval('instance.' + parts[1].trim());
+                const $tpl = $that.children().clone();
+                const itemPlaceholder = parts[0].trim();
+                $that.html('');
+                list.forEach((item) => {
+                    const $item = $tpl.clone();
+                    matches = $item.clone().children().remove().end().text().match(p); 
+                    if (null !== matches) {
+                         const ph = matches[1].trim(); 
+                         $item.html($item.html().replace('{{' +ph+ '}}', ''));
+                         eval("const " + itemPlaceholder + "=" + JSON.stringify(item) + ";$item.prepend(document.createTextNode(" + ph + "));");
+                    }  
+                    $that.append($item);
+                });
+                _makeVdom($that, instance); 
+                $(this).removeAttr(a.name);
             }
           });
 
@@ -141,9 +184,6 @@ const renderDom = (function() {
 </head>
 <body>
 <div id="app"></div>
-
-<input id="bar" type="text">
-<input id="last" type="text">
 <ul></ul>
 <input id="add" type="text"><button>+</button>
 <script>
@@ -153,72 +193,41 @@ class Template {
         this.$html = $(this.template);
         this.$el = opts.$el;
         this.methods = opts.methods;
+        this.data = opts.data;
     }
     render() {
         this.$el.append(renderDom(this.$html[0], this));
     }
 }
-const data = {title: 'freeman', foo: { bar: 'bar', coo: {last: 'last'}}, list: [{name: 'freeman'}, {name: 'tintin'}]};
-
+const data = {title: 'freeman', foo: { bar: 'bar', coo: {last: 'last'}}, todo: {list: [{name: 'freeman'}, {name: 'tintin'}]}};
+makeObjectReact(data);
 const tpl = new Template({
+    data: data,
     $el: $('#app'),
     template: `<div class="wrapper" id="app">
                   <h1>{{data.title}}</h1>
                   <h2>{{data.foo.bar}}</h2>
-                  <input type="text" @keyup="updateTitle">
+                  <ul @for="item in data.todo.get('list')">
+                   <li>{{item.name}}  <button @click="removeItem">-</button></li>
+                  </ul>
+                  <input type="text" @keyup="updateTitle" value="{{data.title}}">
+                  <input type="text" @keyup="updateBar" placeholder="{{data.foo.bar}}">
                </div>`,
     methods: {
         updateTitle(e, $el) {
             console.log('updating title....');
             data.set('title', $el.val());
+        },
+        updateBar(e, $el) {
+            console.log('updating bar....');
+            data.foo.set('bar', $el.val());
+        },
+        removeItem(e, $el) {
+            $el.parent().remove();
         }
     }           
 });
 tpl.render();
-
-makeObjectReact(data);
-
-// // building vdom
-// const $title = CallbackManager.render('data.title', data.title, 
-// function() {
-//     return $('<h1>');
-// },
-// function(o, n, $el) {
-//      $el.text(n);
-// });
-// const $bar = CallbackManager.render('data.foo.bar', data.foo.bar, 
-// function() {
-//     return $('<h2>');
-// },
-// function(o, n, $el) {
-//      $el.text(n);
-// });
-// const $last = CallbackManager.render('data.foo.coo.last', data.foo.coo.last, 
-// function() {
-//     return $('<h3>');
-// },
-// function(o, n, $el) {
-//      $el.text(n);
-// });
-// const $ul = CallbackManager.render('data.list', data.list, 
-// function() { 
-//        return $('ul');
-// },
-// function(o, n, $el) {
-//         $el.empty();
-//         data.get('list').forEach((x, i) => { 
-//             const $li = $('<li>');
-//             $li.text(x.name)
-//                .click(function() {
-//                 const list = data.get('list'); 
-//                 list.splice(i, 1);
-//                 data.set('list', list, CallbackManager.attach('data.list'));
-//            })
-//            $el.append($li);
-//        })
-// });
-
-// $('#app').append($title).append($bar).append($last).append($ul);
 
 $('#title').keyup(function() {
     data.set('title', $(this).val());
