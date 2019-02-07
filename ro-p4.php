@@ -88,7 +88,7 @@ const makeReactObject = (data, cb) => {
 const renderDom = (function() {
     const p = /{{([\s\S]+?)}}/;
 
-    function _makeVdom($el) {
+    function _makeVdom($el, instance) {
       const result = [], vd = [];
       const $children = $el.children(); 
       const textNodes = ['h1', 'h2', 'h3', 'h4', 'h5', 'p', 'span', 'li', 'a', 'button'];
@@ -97,8 +97,8 @@ const renderDom = (function() {
           $children.each(function() { 
             const directText = $(this).clone().children().remove().end().text(); 
             const matches = directText.match(p);
+            const $that = $(this);
             if (null !== matches) {
-                const $that = $(this);
                 const content = matches[1].trim();
                 const parentObj = content.split('.');
                 parentObj.pop();
@@ -110,15 +110,28 @@ const renderDom = (function() {
                                                            $el.text(n);
                                                      }, eval(parentObj.join('.')));
           };
-          return _makeVdom($(this));
+
+          // attach dom events
+          const attr = this.attributes; 
+          const attrs = Object.keys(attr).map((index) => {return {name: attr[index].name, val: attr[index].value}});
+    console.log(attrs)
+          attrs.forEach((a) => {
+            if ('@keyup' === a.name) {
+                 $that.keyup(function(e) {
+                     instance.methods[a.val].call(instance, e, $(this))
+                 });
+            }
+          });
+
+          return _makeVdom($(this), instance);
         });
       }
       return $el;
     }; 
   
-    function makeVdom(el) {
+    function makeVdom(el, instance) {
       const $html = $('<div>' + el.outerHTML + '</div>'); 
-      return _makeVdom($html)[0]
+      return _makeVdom($html, instance)[0]
     }
   
     return makeVdom;
@@ -128,7 +141,7 @@ const renderDom = (function() {
 </head>
 <body>
 <div id="app"></div>
-<input id="title" type="text">
+
 <input id="bar" type="text">
 <input id="last" type="text">
 <ul></ul>
@@ -139,16 +152,27 @@ class Template {
         this.template = opts.template;
         this.$html = $(this.template);
         this.$el = opts.$el;
+        this.methods = opts.methods;
     }
     render() {
-        this.$el.append(renderDom(this.$html[0]));
+        this.$el.append(renderDom(this.$html[0], this));
     }
 }
 const data = {title: 'freeman', foo: { bar: 'bar', coo: {last: 'last'}}, list: [{name: 'freeman'}, {name: 'tintin'}]};
 
 const tpl = new Template({
     $el: $('#app'),
-    template: `<div class="wrapper" id="app"><h1>{{data.title}}</h1><h2>{{data.foo.bar}}</h2></div>`,
+    template: `<div class="wrapper" id="app">
+                  <h1>{{data.title}}</h1>
+                  <h2>{{data.foo.bar}}</h2>
+                  <input type="text" @keyup="updateTitle">
+               </div>`,
+    methods: {
+        updateTitle(e, $el) {
+            console.log('updating title....');
+            data.set('title', $el.val());
+        }
+    }           
 });
 tpl.render();
 
