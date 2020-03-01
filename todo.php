@@ -2,9 +2,7 @@
 <html>
 <head>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
-<script>
-<?php echo file_get_contents(__DIR__ . '/js/jdoh.js'); ?>
-</script>
+<script src="js/jdoh.js"></script>
 <style>
 .done {
     text-decoration: line-through;
